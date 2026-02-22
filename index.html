@@ -50,20 +50,24 @@
         .s-tab.active { background: var(--card); color: var(--primary); border: 1px solid var(--border); border-bottom: none; }
 
         .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        
+        /* CALENDARIO RIDOTTO DEL 33% CIRCA */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .day { 
-            padding: 15px 2px; background: var(--bg); border-radius: 12px; cursor: pointer; 
-            text-align: center; font-size: 1.1em; min-height: 70px; display: flex;
+            padding: 10px 2px; background: var(--bg); border-radius: 10px; cursor: pointer; 
+            text-align: center; font-size: 0.9em; min-height: 48px; display: flex;
             flex-direction: column; align-items: center; justify-content: center; color: var(--text);
         }
         .day.selected { border: 2px solid var(--primary); font-weight: bold; }
         .day.checked { background: var(--success); color: white; }
         
         .habit-count-badge {
-            margin-top: 5px; background: rgba(46, 204, 113, 0.2); color: var(--success);
-            font-size: 0.7em; font-weight: 800; width: 26px; height: 26px; 
+            margin-top: 3px; background: rgba(46, 204, 113, 0.2); color: var(--success);
+            font-size: 0.65em; font-weight: 800; width: 20px; height: 20px; 
             border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid var(--success);
         }
+        /* FINE MODIFICHE RIDUZIONE */
+
         .day.checked .habit-count-badge { background: white; color: var(--success); border-color: white; }
         .day-name { font-weight: bold; color: var(--subtext); font-size: 0.8em; text-align: center; padding-bottom: 5px; }
 
@@ -219,7 +223,6 @@
         }
         streaks.push(currentStreak);
 
-        // Calcolo Sequenza Attuale
         const today = new Date().toISOString().split('T')[0];
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         const last = streaks[streaks.length - 1];
