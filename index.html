@@ -2,8 +2,16 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Tracker XL - Current Streak</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Habit Tracker XL</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Habit XL">
+    <meta name="theme-color" content="#4a90e2">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/4a90e2/ffffff?text=H">
+    <link rel="manifest" href="manifest.json">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { 
@@ -15,8 +23,18 @@
             --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --border: #333; --subtext: #aaa; --tab-bg: #2d3436;
         }
 
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; justify-content: center; color: var(--text); transition: 0.3s; }
-        .container { width: 100%; max-width: 650px; }
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg); 
+            margin: 0; 
+            padding: 15px; 
+            display: flex; 
+            justify-content: center; 
+            color: var(--text); 
+            transition: 0.3s;
+            -webkit-tap-highlight-color: transparent; /* Migliora feedback touch su mobile */
+        }
+        .container { width: 100%; max-width: 650px; padding-bottom: 40px; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-bottom: 15px; border: 1px solid var(--border); }
         
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -42,7 +60,7 @@
         .manage-mode .delete-btn { display: flex; }
 
         .controls-box { display: flex; gap: 8px; margin-bottom: 10px; }
-        input, select { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: var(--card); color: var(--text); }
+        input, select { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: var(--card); color: var(--text); font-size: 16px; /* Evita zoom su iOS */ }
         .btn-action { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; }
 
         .section-tabs { display: flex; gap: 5px; }
@@ -51,7 +69,6 @@
 
         .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         
-        /* CALENDARIO RIDOTTO DEL 33% CIRCA */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .day { 
             padding: 10px 2px; background: var(--bg); border-radius: 10px; cursor: pointer; 
@@ -66,7 +83,6 @@
             font-size: 0.65em; font-weight: 800; width: 20px; height: 20px; 
             border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid var(--success);
         }
-        /* FINE MODIFICHE RIDUZIONE */
 
         .day.checked .habit-count-badge { background: white; color: var(--success); border-color: white; }
         .day-name { font-weight: bold; color: var(--subtext); font-size: 0.8em; text-align: center; padding-bottom: 5px; }
@@ -147,6 +163,7 @@
 </div>
 
 <script>
+    // --- LOGICA CORE ---
     let habits = JSON.parse(localStorage.getItem('h_final_v3')) || ["Acqua", "Esercizio", "Lettura"];
     let logs = JSON.parse(localStorage.getItem('l_final_v3')) || {};
     let selectedDate = new Date().toISOString().split('T')[0];
@@ -160,7 +177,7 @@
         document.body.setAttribute('data-theme', next);
         document.getElementById('themeBtn').innerText = next === 'light' ? '🌙' : '☀️';
         localStorage.setItem('theme', next);
-        renderStats();
+        if(document.getElementById('stats-section').classList.contains('hidden') === false) renderStats();
     }
 
     if(localStorage.getItem('theme') === 'dark') toggleTheme();
@@ -337,7 +354,7 @@
             options: { 
                 plugins: { legend: { display: false } }, 
                 scales: { 
-                    y: { beginAtZero: true, ticks: { stepSize: 1, max: 7, color: isDark ? '#aaa' : '#666' }, grid: { color: isDark ? '#333' : '#eee' } },
+                    y: { beginAtZero: true, ticks: { stepSize: 1, color: isDark ? '#aaa' : '#666' }, grid: { color: isDark ? '#333' : '#eee' } },
                     x: { ticks: { color: isDark ? '#aaa' : '#666' }, grid: { display: false } }
                 } 
             }
@@ -364,6 +381,15 @@
             } catch (err) { alert("File non valido"); }
         };
         reader.readAsText(file);
+    }
+
+    // --- REGISTRAZIONE PWA SERVICE WORKER ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                console.log('SW registrato correttamente');
+            }).catch(err => console.log('Errore SW', err));
+        });
     }
 
     renderAll();
