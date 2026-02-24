@@ -12,7 +12,7 @@
       "src": "https://via.placeholder.com/192/4a90e2/ffffff?text=H",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
     },
     {
       "src": "https://via.placeholder.com/512/4a90e2/ffffff?text=H",
@@ -24,7 +24,7 @@
       "src": "https://via.placeholder.com/512/4a90e2/ffffff?text=H",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ]
 }
