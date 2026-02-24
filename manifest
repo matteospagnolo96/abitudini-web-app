@@ -4,18 +4,27 @@
   "description": "Monitora le tue abitudini quotidiane",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#f0f2f5",
+  "orientation": "portrait",
+  "background_color": "#4a90e2",
   "theme_color": "#4a90e2",
   "icons": [
     {
       "src": "https://via.placeholder.com/192/4a90e2/ffffff?text=H",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "https://via.placeholder.com/512/4a90e2/ffffff?text=HabitXL",
+      "src": "https://via.placeholder.com/512/4a90e2/ffffff?text=H",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://via.placeholder.com/512/4a90e2/ffffff?text=H",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
