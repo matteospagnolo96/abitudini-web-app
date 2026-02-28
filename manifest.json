@@ -1,18 +1,22 @@
 {
   "name": "Habit Tracker XL",
   "short_name": "Habit XL",
-  "description": "Monitora le tue abitudini quotidiane",
+  "description": "Tracker abitudini minimale e potente",
   "start_url": "index.html",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#4a90e2",
+  "background_color": "#f0f2f5",
   "theme_color": "#4a90e2",
   "icons": [
+    {
+      "src": "icona.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
     {
       "src": "icona.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
+    }
   ]
 }
