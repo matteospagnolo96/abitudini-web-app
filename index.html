@@ -57,7 +57,7 @@
             color: var(--text); 
             transition: 0.3s;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; /* Impedisce la selezione del testo per sembrare più app */
+            user-select: none;
         }
         .container { width: 100%; max-width: 650px; padding-bottom: 40px; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-bottom: 15px; border: 1px solid var(--border); }
@@ -84,9 +84,30 @@
         }
         .manage-mode .delete-btn { display: flex; }
 
-        .controls-box { display: flex; gap: 8px; margin-bottom: 10px; }
-        input, select { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: var(--card); color: var(--text); font-size: 16px; }
-        .btn-action { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .controls-box { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+        input#habitInput { flex: 2; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: var(--card); color: var(--text); font-size: 16px; }
+        
+        /* Dropdown Stile Ottimizzato */
+        #habitSelector {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 18px;
+        }
+
+        .btn-action { white-space: nowrap; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-weight: bold; border: none; font-size: 14px; }
+        .btn-add { background: var(--primary); color: white; min-width: 40px; }
+        .btn-manage { background: #636e72; color: white; flex: 1; max-width: 100px; }
 
         .section-tabs { display: flex; gap: 5px; }
         .s-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; background: var(--tab-bg); border-radius: 12px 12px 0 0; font-weight: bold; color: var(--subtext); }
@@ -133,9 +154,9 @@
             <div style="width: 40px;"></div>
         </div>
         <div class="controls-box">
-            <input type="text" id="habitInput" placeholder="Nuova abitudine...">
-            <button class="btn-action" onclick="addHabit()">+</button>
-            <button class="btn-action" style="background:#636e72" onclick="toggleManage()" id="manageBtn">Gestisci</button>
+            <input type="text" id="habitInput" placeholder="Nuova...">
+            <button class="btn-action btn-add" onclick="addHabit()">+</button>
+            <button class="btn-action btn-manage" onclick="toggleManage()" id="manageBtn">Gestisci</button>
         </div>
         <div id="habitGrid" class="habit-grid"></div>
     </div>
@@ -147,20 +168,22 @@
 
     <div id="calendar-section" class="card" style="border-radius: 0 0 20px 20px; margin-top: -1px;">
         <div class="nav-header">
-            <button class="btn-action" onclick="changeMonth(-1)">◀</button>
+            <button class="btn-action btn-add" onclick="changeMonth(-1)">◀</button>
             <b id="monthYear"></b>
-            <button class="btn-action" onclick="changeMonth(1)">▶</button>
+            <button class="btn-action btn-add" onclick="changeMonth(1)">▶</button>
         </div>
         <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
     <div id="stats-section" class="card hidden" style="border-radius: 0 0 20px 20px; margin-top: -1px;">
         <select id="habitSelector" onchange="renderStats()"></select>
+        
         <div class="nav-header" style="margin-top:10px;">
-            <button class="btn-action" onclick="changeStatsDate(-1)">◀</button>
+            <button class="btn-action btn-add" onclick="changeStatsDate(-1)">◀</button>
             <b id="statsDateLabel"></b>
-            <button class="btn-action" onclick="changeStatsDate(1)">▶</button>
+            <button class="btn-action btn-add" onclick="changeStatsDate(1)">▶</button>
         </div>
+
         <div style="display:flex; gap:10px; margin-bottom:15px;">
             <div class="stat-card">
                 <span style="display:block; font-size:1.3em; font-weight:bold; color:var(--primary);" id="statPerc">0%</span>
@@ -188,7 +211,6 @@
 </div>
 
 <script>
-    // --- LOGICA CORE ---
     let habits = JSON.parse(localStorage.getItem('h_final_v3')) || ["Acqua", "Esercizio", "Lettura"];
     let logs = JSON.parse(localStorage.getItem('l_final_v3')) || {};
     let selectedDate = new Date().toISOString().split('T')[0];
@@ -255,25 +277,18 @@
     function getStreakStats(habit) {
         let allDates = Object.keys(logs).filter(d => logs[d].includes(habit)).sort();
         if (allDates.length === 0) return { best3: [], current: 0 };
-        
         let streaks = [], currentStreak = { count: 1, start: allDates[0], end: allDates[0] };
-
         for (let i = 1; i < allDates.length; i++) {
             let diff = (new Date(allDates[i]) - new Date(allDates[i-1])) / 86400000;
             if (diff === 1) { currentStreak.count++; currentStreak.end = allDates[i]; }
             else { streaks.push({...currentStreak}); currentStreak = { count: 1, start: allDates[i], end: allDates[i] }; }
         }
         streaks.push(currentStreak);
-
         const today = new Date().toISOString().split('T')[0];
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         const last = streaks[streaks.length - 1];
         let currentCount = (last.end === today || last.end === yesterday) ? last.count : 0;
-
-        return { 
-            best3: [...streaks].sort((a, b) => b.count - a.count).slice(0, 3),
-            current: currentCount 
-        };
+        return { best3: [...streaks].sort((a, b) => b.count - a.count).slice(0, 3), current: currentCount };
     }
 
     function renderAll() {
@@ -340,7 +355,6 @@
             let current = new Date(y, m, 1);
             current.setDate(current.getDate() - (current.getDay() + 6) % 7); 
             let totalH = 0;
-
             for(let w=0; w<5; w++) {
                 let startLabel = current.getDate(), weekCount = 0;
                 for(let i=0; i<7; i++) {
@@ -351,7 +365,6 @@
                 labels.push(`${startLabel}-${new Date(current.getTime() - 86400000).getDate()}`);
                 data.push(weekCount);
             }
-
             const sStats = getStreakStats(target);
             document.getElementById('streakContainer').innerHTML = `
                 <div style="margin-top:10px; border-bottom:1px solid var(--border); padding-bottom:15px;">
@@ -408,7 +421,6 @@
         reader.readAsText(file);
     }
 
-    // --- REGISTRAZIONE SERVICE WORKER (Inline) ---
     const swCode = `
         const CACHE_NAME = 'habit-v3';
         self.addEventListener('install', e => {
@@ -420,13 +432,10 @@
     `;
     const swBlob = new Blob([swCode], {type: 'application/javascript'});
     const swURL = URL.createObjectURL(swBlob);
-    
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register(swURL).then(() => console.log('PWA Ready'));
     }
-
     renderAll();
 </script>
 </body>
 </html>
-
