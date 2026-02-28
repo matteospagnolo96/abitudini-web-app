@@ -14,20 +14,6 @@
     <meta name="theme-color" content="#4a90e2">
 
     <script>
-        const manifest = {
-            "name": "Habit Tracker XL",
-            "short_name": "Habit XL",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#f0f2f5",
-            "theme_color": "#4a90e2",
-            "icons": [{
-                "src": "icona.png",
-                "sizes": "512x512",
-                "type": "image/png"
-                "purpose" : "maskable"
-            }]
-        };
         const stringManifest = JSON.stringify(manifest);
         const blob = new Blob([stringManifest], {type: 'application/json'});
         const manifestURL = URL.createObjectURL(blob);
@@ -440,6 +426,7 @@
 </script>
 </body>
 </html>
+
 
 
 
