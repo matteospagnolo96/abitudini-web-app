@@ -8,20 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Habit XL">
+    <link rel="apple-touch-icon" href="icona.png">
 
-    <link rel="icon" type="image/png" href="icona.png?v=2">
-    <link rel="apple-touch-icon" href="icona.png?v=2">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4a90e2">
-
-    <script>
-        const stringManifest = JSON.stringify(manifest);
-        const blob = new Blob([stringManifest], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestURL;
-        document.head.appendChild(link);
-    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -74,22 +64,12 @@
         .controls-box { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
         input#habitInput { flex: 2; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: var(--card); color: var(--text); font-size: 16px; }
         
-        /* Dropdown Stile Ottimizzato */
         #habitSelector {
-            width: 100%;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: var(--bg);
-            color: var(--text);
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            appearance: none;
+            width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+            background: var(--bg); color: var(--text); font-size: 15px; font-weight: 600;
+            margin-bottom: 10px; appearance: none;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            background-size: 18px;
+            background-repeat: no-repeat; background-position: right 10px center; background-size: 18px;
         }
 
         .btn-action { white-space: nowrap; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-weight: bold; border: none; font-size: 14px; }
@@ -141,7 +121,7 @@
             <div style="width: 40px;"></div>
         </div>
         <div class="controls-box">
-            <input type="text" id="habitInput" placeholder="Nuova...">
+            <input type="text" id="habitInput" placeholder="Nuova abitudine...">
             <button class="btn-action btn-add" onclick="addHabit()">+</button>
             <button class="btn-action btn-manage" onclick="toggleManage()" id="manageBtn">Gestisci</button>
         </div>
@@ -205,6 +185,7 @@
     let statsMonth = new Date();
     let isManageMode = false;
 
+    // Theme Logic
     function toggleTheme() {
         const current = document.body.getAttribute('data-theme');
         const next = current === 'light' ? 'dark' : 'light';
@@ -213,9 +194,9 @@
         localStorage.setItem('theme', next);
         if(!document.getElementById('stats-section').classList.contains('hidden')) renderStats();
     }
-
     if(localStorage.getItem('theme') === 'dark') toggleTheme();
 
+    // Data Management
     function save() {
         localStorage.setItem('h_final_v3', JSON.stringify(habits));
         localStorage.setItem('l_final_v3', JSON.stringify(logs));
@@ -342,7 +323,7 @@
             let current = new Date(y, m, 1);
             current.setDate(current.getDate() - (current.getDay() + 6) % 7); 
             let totalH = 0;
-            for(let w=0; w<5; w++) {
+            for(let w=0; w<6; w++) {
                 let startLabel = current.getDate(), weekCount = 0;
                 for(let i=0; i<7; i++) {
                     let dStr = `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,'0')}-${String(current.getDate()).padStart(2,'0')}`;
@@ -408,26 +389,15 @@
         reader.readAsText(file);
     }
 
-    const swCode = `
-        const CACHE_NAME = 'habit-v3';
-        self.addEventListener('install', e => {
-            e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(['./'])));
-        });
-        self.addEventListener('fetch', e => {
-            e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
-        });
-    `;
-    const swBlob = new Blob([swCode], {type: 'application/javascript'});
-    const swURL = URL.createObjectURL(swBlob);
+    // Registrazione Service Worker Corretta
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register(swURL).then(() => console.log('PWA Ready'));
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                console.log('PWA Service Worker Registrato');
+            }).catch(err => console.log('Errore SW:', err));
+        });
     }
     renderAll();
 </script>
 </body>
 </html>
-
-
-
-
-
