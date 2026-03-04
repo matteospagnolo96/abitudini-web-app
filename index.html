@@ -57,7 +57,7 @@
             color: var(--text); 
             transition: 0.3s;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; /* Impedisce la selezione del testo per sembrare più app */
+            user-select: none;
         }
         .container { width: 100%; max-width: 650px; padding-bottom: 40px; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-bottom: 15px; border: 1px solid var(--border); }
@@ -65,7 +65,7 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         h3 { margin: 0; flex-grow: 1; text-align: center; }
 
-        .theme-toggle { background: var(--tab-bg); border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; color: var(--text); font-size: 1.2em; }
+        .theme-toggle { background: var(--tab-bg); border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; color: var(--text); font-size: 1.2em; display: flex; align-items: center; justify-content: center; }
 
         .habit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 15px; }
         .habit-item { position: relative; }
@@ -121,6 +121,10 @@
         .backup-footer { margin-top: 30px; text-align: center; opacity: 0.4; transition: 0.3s; }
         .backup-footer:hover { opacity: 1; }
         .btn-backup { background: none; border: 1px solid var(--subtext); color: var(--subtext); padding: 5px 10px; border-radius: 5px; font-size: 10px; cursor: pointer; margin: 0 5px; }
+
+        /* Stile Pannello Cloud */
+        #cloudPanel { border: 2px solid var(--primary); animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body data-theme="light">
@@ -130,8 +134,19 @@
         <div class="header-top">
             <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
             <h3 id="dateLabel">Oggi</h3>
-            <div style="width: 40px;"></div>
+            <button class="theme-toggle" onclick="toggleCloudPanel()">☁️</button>
         </div>
+
+        <div id="cloudPanel" class="card hidden" style="margin-bottom: 15px; padding: 15px;">
+            <h4 style="margin: 0 0 10px 0; font-size: 0.9em; color: var(--primary);">Sincronizzazione JSONBin.io</h4>
+            <input type="password" id="binKey" placeholder="Master API Key" style="margin-bottom:8px; font-size: 14px;">
+            <input type="text" id="binId" placeholder="Bin ID" style="margin-bottom:8px; font-size: 14px;">
+            <div style="display:flex; gap:8px;">
+                <button class="btn-action" style="background:var(--success); flex:1; font-size:12px;" onclick="cloudSave(this)">SALVA NEL CLOUD</button>
+                <button class="btn-action" style="background:var(--current); flex:1; font-size:12px;" onclick="cloudLoad(this)">CARICA DAL CLOUD</button>
+            </div>
+        </div>
+
         <div class="controls-box">
             <input type="text" id="habitInput" placeholder="Nuova abitudine...">
             <button class="btn-action" onclick="addHabit()">+</button>
@@ -213,6 +228,61 @@
         renderAll();
     }
 
+    // --- FUNZIONI CLOUD ---
+    function toggleCloudPanel() {
+        const panel = document.getElementById('cloudPanel');
+        panel.classList.toggle('hidden');
+        document.getElementById('binKey').value = localStorage.getItem('jb_key') || '';
+        document.getElementById('binId').value = localStorage.getItem('jb_id') || '';
+    }
+
+    async function cloudSave(btn) {
+        const key = document.getElementById('binKey').value;
+        const id = document.getElementById('binId').value;
+        if(!key || !id) return alert("Inserisci API Key e Bin ID");
+        
+        localStorage.setItem('jb_key', key);
+        localStorage.setItem('jb_id', id);
+        const originalText = btn.innerText;
+        btn.innerText = "INVIO...";
+        
+        try {
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': key },
+                body: JSON.stringify({ habits, logs })
+            });
+            if(response.ok) alert("Dati salvati sul cloud!");
+            else alert("Errore: controlla le credenziali.");
+        } catch (e) { alert("Errore di connessione."); }
+        btn.innerText = originalText;
+    }
+
+    async function cloudLoad(btn) {
+        const key = document.getElementById('binKey').value;
+        const id = document.getElementById('binId').value;
+        if(!key || !id) return alert("Inserisci API Key e Bin ID");
+        if(!confirm("Sovrascrivere i dati locali con quelli del cloud?")) return;
+
+        const originalText = btn.innerText;
+        btn.innerText = "RICEZIONE...";
+        
+        try {
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${id}/latest`, {
+                headers: { 'X-Master-Key': key }
+            });
+            const data = await response.json();
+            if(data.record && data.record.habits) {
+                habits = data.record.habits;
+                logs = data.record.logs;
+                save();
+                alert("Sincronizzazione completata!");
+            }
+        } catch (e) { alert("Errore nel caricamento."); }
+        btn.innerText = originalText;
+    }
+
+    // --- GESTIONE ABITUDINI ---
     function toggleManage() {
         isManageMode = !isManageMode;
         document.getElementById('manageBtn').innerText = isManageMode ? "Fine" : "Gestisci";
@@ -257,7 +327,6 @@
         if (allDates.length === 0) return { best3: [], current: 0 };
         
         let streaks = [], currentStreak = { count: 1, start: allDates[0], end: allDates[0] };
-
         for (let i = 1; i < allDates.length; i++) {
             let diff = (new Date(allDates[i]) - new Date(allDates[i-1])) / 86400000;
             if (diff === 1) { currentStreak.count++; currentStreak.end = allDates[i]; }
@@ -269,11 +338,7 @@
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         const last = streaks[streaks.length - 1];
         let currentCount = (last.end === today || last.end === yesterday) ? last.count : 0;
-
-        return { 
-            best3: [...streaks].sort((a, b) => b.count - a.count).slice(0, 3),
-            current: currentCount 
-        };
+        return { best3: [...streaks].sort((a, b) => b.count - a.count).slice(0, 3), current: currentCount };
     }
 
     function renderAll() {
@@ -340,7 +405,6 @@
             let current = new Date(y, m, 1);
             current.setDate(current.getDate() - (current.getDay() + 6) % 7); 
             let totalH = 0;
-
             for(let w=0; w<5; w++) {
                 let startLabel = current.getDate(), weekCount = 0;
                 for(let i=0; i<7; i++) {
@@ -351,7 +415,6 @@
                 labels.push(`${startLabel}-${new Date(current.getTime() - 86400000).getDate()}`);
                 data.push(weekCount);
             }
-
             const sStats = getStreakStats(target);
             document.getElementById('streakContainer').innerHTML = `
                 <div style="margin-top:10px; border-bottom:1px solid var(--border); padding-bottom:15px;">
@@ -408,7 +471,7 @@
         reader.readAsText(file);
     }
 
-    // --- REGISTRAZIONE SERVICE WORKER (Inline) ---
+    // --- SERVICE WORKER ---
     const swCode = `
         const CACHE_NAME = 'habit-v3';
         self.addEventListener('install', e => {
@@ -420,7 +483,6 @@
     `;
     const swBlob = new Blob([swCode], {type: 'application/javascript'});
     const swURL = URL.createObjectURL(swBlob);
-    
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register(swURL).then(() => console.log('PWA Ready'));
     }
