@@ -67,6 +67,7 @@
 
         .theme-toggle { background: var(--tab-bg); border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; color: var(--text); font-size: 1.2em; display: flex; align-items: center; justify-content: center; }
 
+        /* Griglia Abitudini */
         .habit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 15px; }
         .habit-item { position: relative; }
         .habit-btn { 
@@ -84,9 +85,42 @@
         }
         .manage-mode .delete-btn { display: flex; }
 
-        .controls-box { display: flex; gap: 8px; margin-bottom: 10px; }
-        input, select { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: var(--card); color: var(--text); font-size: 16px; }
-        .btn-action { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        /* --- FIX CONTROLLI (INPUT E BOTTONI) --- */
+        .controls-box { 
+            display: flex; 
+            gap: 8px; 
+            margin-bottom: 10px; 
+            align-items: center;
+        }
+        input { 
+            flex: 1; 
+            min-width: 0; /* Permette all'input di rimpicciolirsi se necessario */
+            padding: 12px; 
+            border: 1px solid var(--border); 
+            border-radius: 10px; 
+            outline: none; 
+            background: var(--card); 
+            color: var(--text); 
+            font-size: 16px; 
+        }
+        .btn-action { 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            padding: 10px 15px; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: bold;
+            white-space: nowrap; /* Impedisce al testo di andare a capo */
+            flex-shrink: 0; /* Impedisce al bottone di schiacciarsi */
+        }
+
+        /* Gestione per schermi molto piccoli */
+        @media (max-width: 380px) {
+            .controls-box { flex-wrap: wrap; }
+            input { flex: 1 1 100%; } /* L'input prende tutta la riga se lo spazio è pochissimo */
+        }
+        /* -------------------------------------- */
 
         .section-tabs { display: flex; gap: 5px; }
         .s-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; background: var(--tab-bg); border-radius: 12px 12px 0 0; font-weight: bold; color: var(--subtext); }
@@ -122,7 +156,6 @@
         .backup-footer:hover { opacity: 1; }
         .btn-backup { background: none; border: 1px solid var(--subtext); color: var(--subtext); padding: 5px 10px; border-radius: 5px; font-size: 10px; cursor: pointer; margin: 0 5px; }
 
-        /* Stile Pannello Cloud */
         #cloudPanel { border: 2px solid var(--primary); animation: slideDown 0.3s ease-out; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
