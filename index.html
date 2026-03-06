@@ -85,16 +85,17 @@
         }
         .manage-mode .delete-btn { display: flex; }
 
-        /* --- FIX CONTROLLI (INPUT E BOTTONI) --- */
+        /* --- FIX CONTROLLI (INPUT, SELECT E BOTTONI) --- */
         .controls-box { 
             display: flex; 
             gap: 8px; 
             margin-bottom: 10px; 
             align-items: center;
         }
-        input { 
+        
+        input, select { 
             flex: 1; 
-            min-width: 0; /* Permette all'input di rimpicciolirsi se necessario */
+            min-width: 0;
             padding: 12px; 
             border: 1px solid var(--border); 
             border-radius: 10px; 
@@ -102,7 +103,28 @@
             background: var(--card); 
             color: var(--text); 
             font-size: 16px; 
+            transition: border-color 0.2s;
         }
+
+        /* Stile specifico per il Dropdown Analisi */
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+            padding-right: 40px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        select option {
+            background: var(--card);
+            color: var(--text);
+        }
+
         .btn-action { 
             background: var(--primary); 
             color: white; 
@@ -111,23 +133,23 @@
             border-radius: 10px; 
             cursor: pointer; 
             font-weight: bold;
-            white-space: nowrap; /* Impedisce al testo di andare a capo */
-            flex-shrink: 0; /* Impedisce al bottone di schiacciarsi */
+            white-space: nowrap; 
+            flex-shrink: 0; 
         }
 
-        /* Gestione per schermi molto piccoli */
         @media (max-width: 380px) {
             .controls-box { flex-wrap: wrap; }
-            input { flex: 1 1 100%; } /* L'input prende tutta la riga se lo spazio è pochissimo */
+            input { flex: 1 1 100%; }
         }
-        /* -------------------------------------- */
 
+        /* --- SEZIONI E TAB --- */
         .section-tabs { display: flex; gap: 5px; }
         .s-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; background: var(--tab-bg); border-radius: 12px 12px 0 0; font-weight: bold; color: var(--subtext); }
         .s-tab.active { background: var(--card); color: var(--primary); border: 1px solid var(--border); border-bottom: none; }
 
         .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         
+        /* Calendario */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .day { 
             padding: 10px 2px; background: var(--bg); border-radius: 10px; cursor: pointer; 
@@ -146,6 +168,7 @@
         .day.checked .habit-count-badge { background: white; color: var(--success); border-color: white; }
         .day-name { font-weight: bold; color: var(--subtext); font-size: 0.8em; text-align: center; padding-bottom: 5px; }
 
+        /* Statistiche */
         .stat-card { background: var(--bg); flex: 1; padding: 12px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
         .summary-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; }
         .streak-tag { background: var(--streak); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; }
@@ -204,6 +227,7 @@
 
     <div id="stats-section" class="card hidden" style="border-radius: 0 0 20px 20px; margin-top: -1px;">
         <select id="habitSelector" onchange="renderStats()"></select>
+        
         <div class="nav-header" style="margin-top:10px;">
             <button class="btn-action" onclick="changeStatsDate(-1)">◀</button>
             <b id="statsDateLabel"></b>
