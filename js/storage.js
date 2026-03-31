@@ -73,7 +73,7 @@ async function syncWithCloud() {
 
 async function loadFromCloud() {
     const { data: { user } } = await sb.auth.getUser();
-    if (!user) return;
+    if (!user) return false;
 
     try {
         const { data, error } = await sb
@@ -82,22 +82,27 @@ async function loadFromCloud() {
             .eq('user_id', user.id)
             .single();
         
+        if (error && error.code === 'PGRST116') {
+            return "no_data"; // Nessun dato presente nel DB per questo utente
+        }
+        
         if (data && data.data) {
             setHabits(data.data.habits);
             setLogs(data.data.logs);
             localStorage.setItem('h_final_v3', JSON.stringify(habits));
             localStorage.setItem('l_final_v3', JSON.stringify(logs));
-            return true;
+            return "loaded";
         }
     } catch (e) { console.error("Errore caricamento cloud."); }
-    return false;
+    return "error";
 }
 
 // --- AUTH ---
 async function coreLogin(email, password) {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    await loadFromCloud();
+    const res = await loadFromCloud();
+    if (res === "no_data") await syncWithCloud();
     return data;
 }
 
@@ -115,7 +120,8 @@ async function coreLogout() {
 async function checkSession(onAuth, onNoAuth) {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
-        await loadFromCloud();
+        const res = await loadFromCloud();
+        if (res === "no_data") await syncWithCloud();
         onAuth(session.user);
     } else {
         onNoAuth();
