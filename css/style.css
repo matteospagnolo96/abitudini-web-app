@@ -36,7 +36,7 @@ h3 { margin: 0; flex-grow: 1; text-align: center; }
     position: relative;
     width: 100%; min-height: 60px; height: 100%; border: 1px solid var(--border); border-radius: 14px; background: var(--card);
     cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; font-size: 0.85em; color: var(--text);
-    word-break: break-word; overflow: hidden;
+    overflow: hidden;
     z-index: 1;
 }
 .habit-progress-bg {
@@ -109,10 +109,23 @@ select option {
     input { flex: 1 1 100%; }
 }
 
-/* --- SEZIONI E TAB --- */
-.section-tabs { display: flex; gap: 5px; }
-.s-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; background: var(--tab-bg); border-radius: 12px 12px 0 0; font-weight: bold; color: var(--subtext); }
-.s-tab.active { background: var(--card); color: var(--primary); border: 1px solid var(--border); border-bottom: none; }
+/* --- BOTTOM NAVIGATION --- */
+.bottom-nav {
+    position: fixed; bottom: 0; left: 0; width: 100%;
+    background: var(--card); display: flex; justify-content: space-around; align-items: center;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -5px 25px rgba(0,0,0,0.08); border-top: 1px solid var(--border);
+    z-index: 900;
+}
+.s-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    color: var(--subtext); cursor: pointer; background: transparent;
+    border: none; border-radius: 0; padding: 5px; transition: 0.3s;
+    font-size: 0.75em; font-weight: 600;
+}
+.s-tab .nav-icon { font-size: 1.6em; margin-bottom: 4px; filter: grayscale(1); opacity: 0.6; transition: 0.3s; }
+.s-tab.active { color: var(--primary); }
+.s-tab.active .nav-icon { filter: grayscale(0); opacity: 1; transform: scale(1.1); }
 
 .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 
@@ -175,10 +188,14 @@ select option {
     border-width: 2px;
 }
 .habit-name {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
+    overflow-wrap: anywhere;
     font-size: 0.9em;
     font-weight: bold;
     pointer-events: none;
@@ -189,7 +206,7 @@ select option {
     color: white;
     text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
-.habit-emoji { font-size: 1.2em; }
+.habit-emoji { font-size: 1.2em; margin-right: 4px; vertical-align: middle; display: inline-block; padding-bottom: 2px; }
 .progress-val {
     width: 100%;
     text-align: center;
@@ -240,27 +257,19 @@ select option {
 
 #authOverlay.hidden, #editorOverlay.hidden { display: none; }
 
-/* FAB */
-.fab {
-    position: fixed;
-    bottom: 30px;
-    right: 20px;
-    width: 60px;
-    height: 60px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 30px;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
-    z-index: 900;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.3s;
+/* CENTER FAB (BOTTOM NAV) */
+.nav-fab-wrapper {
+    flex: 0 0 80px; display: flex; justify-content: center;
+    position: relative; top: -25px;
 }
-.fab:active { transform: scale(0.9); }
+.nav-fab {
+    width: 60px; height: 60px;
+    background: var(--primary); color: white; border: none; border-radius: 50%;
+    font-size: 32px; cursor: pointer;
+    box-shadow: 0 8px 20px rgba(74, 144, 226, 0.4);
+    display: flex; align-items: center; justify-content: center; transition: 0.3s;
+}
+.nav-fab:active { transform: scale(0.9); }
 
 /* Bottom Sheet */
 .editor-overlay {
@@ -305,6 +314,33 @@ select option {
     justify-content: center;
     font-weight: bold;
     color: var(--subtext);
+}
+
+/* Segmented Controls (Tipo e Frequenza) */
+.seg-control {
+    display: flex;
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+    border: 1px solid var(--border);
+}
+.seg-btn {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--subtext);
+    cursor: pointer;
+    transition: 0.2s;
+    user-select: none;
+}
+.seg-btn.active {
+    background: var(--card);
+    color: var(--primary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
 }
 
 /* Day Selector Frequenza */
