@@ -67,8 +67,14 @@ async function syncWithCloud() {
                 data: { habits, logs },
                 updated_at: new Date().toISOString()
             });
-        if (error) console.error("Errore sincronizzazione:", error.message);
-    } catch (e) { console.error("Errore di connessione cloud."); }
+        if (error) {
+            console.error("Errore sincronizzazione:", error.message);
+            alert("⚠️ Errore salvataggio Cloud: " + error.message);
+        }
+    } catch (e) { 
+        console.error("Errore di connessione cloud:", e);
+        alert("⚠️ Impossibile contattare il server cloud.");
+    }
 }
 
 async function loadFromCloud() {
@@ -84,6 +90,11 @@ async function loadFromCloud() {
         
         if (error && error.code === 'PGRST116') {
             return "no_data"; // Nessun dato presente nel DB per questo utente
+        }
+        if (error) {
+            console.error("Errore Supabase in fetch:", error.message);
+            alert("⚠️ Errore caricamento dal Cloud: " + error.message);
+            return "error";
         }
         
         if (data && data.data) {

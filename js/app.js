@@ -128,7 +128,10 @@ function setupEventListeners() {
     window.updateAdvUI = () => {
         const type = document.getElementById('habitType').value;
         const advFields = document.querySelectorAll('.adv-field');
-        advFields.forEach(f => f.classList.toggle('hidden', type !== 'value'));
+        // Usa style.display direttamente: sovrascrive correttamente l'inline style del div
+        advFields.forEach(f => {
+            f.style.display = (type === 'value') ? 'grid' : 'none';
+        });
     };
 
     window.updateFreqUI = () => {
@@ -141,6 +144,22 @@ function setupEventListeners() {
         d.onclick = () => d.classList.toggle('active');
     });
 
+    document.querySelectorAll('.seg-btn').forEach(btn => {
+        btn.onclick = () => {
+            const parent = btn.parentElement;
+            parent.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            if (parent.id === 'segType') {
+                document.getElementById('habitType').value = btn.dataset.val;
+                updateAdvUI();
+            } else if (parent.id === 'segFreq') {
+                document.getElementById('habitFrequency').value = btn.dataset.val;
+                updateFreqUI();
+            }
+        };
+    });
+
     document.querySelectorAll('.color-dot').forEach(dot => {
         dot.onclick = () => {
             document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
@@ -151,15 +170,21 @@ function setupEventListeners() {
 
     document.querySelectorAll('.emoji-opt').forEach(opt => {
         opt.onclick = () => {
-            document.getElementById('habitEmoji').value = opt.innerText;
+            // Rimuovi attivo da tutti, aggiungi all'emoji cliccata
+            document.querySelectorAll('.emoji-opt').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            document.getElementById('habitEmoji').value = opt.innerText.trim();
         };
     });
 
     // Navigation
-    window.switchSection = (type) => coreSwitchSection(type, () => {
-        coreFillSelector();
-        coreRenderStats(statsMonth, renderCalendarBase);
-    });
+    window.switchSection = (type) => {
+        coreSwitchSection(type, () => {
+            coreFillSelector();
+            coreRenderStats(statsMonth, renderCalendarBase);
+        });
+        render(); // Sempre: ri-renderizza il grid in base alla tab ora attiva
+    };
     
     window.changeMonth = (dir) => {
         viewMonth.setMonth(viewMonth.getMonth() + dir);

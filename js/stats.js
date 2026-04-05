@@ -96,6 +96,7 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
             
             let completedToday = 0;
             let activeTodayCount = 0;
+            let dayValue = 0; // somma valori registrati in questo giorno
 
             habits.forEach(h => {
                 const freq = h.frequency || 'daily';
@@ -107,16 +108,19 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
 
                 const val = dayLogs[h.id];
                 const isDone = (h.type === 'value' ? val >= h.target : val === true);
-                if (isDone) {
-                    hMap[h.id]++;
-                    completedToday++;
+                if (isDone) { hMap[h.id]++; completedToday++; }
+
+                // Accumula valore reale per grafico e totali
+                if (h.type === 'value' && typeof val === 'number' && val > 0) {
+                    dayValue += val;
+                } else if (h.type === 'binary' && val === true) {
+                    dayValue += 1;
                 }
             });
 
-            labels.push(d); 
-            data.push(completedToday); 
+            labels.push(d);
+            data.push(parseFloat(dayValue.toFixed(2)));
             totalProgress += completedToday;
-            // Un giorno è perfetto se completi TUTTE le abitudini previste per quel giorno
             if (activeTodayCount > 0 && completedToday >= activeTodayCount) perfectDays++;
         }
         
@@ -137,6 +141,12 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         document.getElementById('statPerc').innerText = Math.round((totalProgress / (totalExpected || 1)) * 100) + "%";
         document.getElementById('statCount').innerText = perfectDays;
         document.getElementById('statLabelCount').innerText = "GIORNI PERFETTI";
+        // Totale e media del mese (somma di tutti i valori registrati)
+        const monthTotal = data.reduce((a, b) => a + b, 0);
+        document.getElementById('statTotal').innerText = parseFloat(monthTotal.toFixed(1));
+        document.getElementById('statLabelTotal').innerText = "TOTALE MESE";
+        document.getElementById('statAvg').innerText = parseFloat((monthTotal / lastDay).toFixed(2));
+        document.getElementById('statLabelAvg').innerText = "MEDIA GIORNALIERA";
         document.getElementById('summaryList').innerHTML = habits.map(h => {
             let hExpected = 0;
             const f = h.frequency || 'daily';
@@ -157,24 +167,29 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         document.getElementById('summaryList').classList.add('hidden');
         document.getElementById('miniCalContainer').classList.remove('hidden');
         const h = habits.find(x => x.id === target);
-        let currentMonthView = new Date(y, m, 1);
-        currentMonthView.setDate(currentMonthView.getDate() - (currentMonthView.getDay() + 6) % 7); 
-        
-        let totalCompletes = 0;
-        for(let w=0; w<5; w++) {
-            let startLabel = currentMonthView.getDate(), weekCount = 0;
-            for(let i=0; i<7; i++) {
-                let dStr = `${currentMonthView.getFullYear()}-${String(currentMonthView.getMonth()+1).padStart(2,'0')}-${String(currentMonthView.getDate()).padStart(2,'0')}`;
-                if (currentMonthView.getMonth() === m) {
-                    const val = logs[dStr]?.[target];
-                    const isDone = (h && h.type === 'value' ? val >= h.target : val === true);
-                    if (isDone) { weekCount++; totalCompletes++; }
-                }
-                currentMonthView.setDate(currentMonthView.getDate() + 1);
+        if (!h) return;
+
+        // Loop giornaliero: valori reali per il mese
+        let totalCompletes = 0, totalValue = 0, activeDays = 0;
+        for (let d = 1; d <= lastDay; d++) {
+            const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const val = logs[dStr]?.[target];
+            labels.push(d);
+            if (h.type === 'value') {
+                const numVal = (typeof val === 'number' && val > 0) ? val : 0;
+                data.push(parseFloat(numVal.toFixed(2)));
+                totalValue += numVal;
+                if (numVal > 0) activeDays++;
+                if (typeof val === 'number' && val >= h.target) totalCompletes++;
+            } else {
+                const done = val === true ? 1 : 0;
+                data.push(done);
+                totalValue += done;
+                if (done) { activeDays++; totalCompletes++; }
             }
-            labels.push(`${startLabel}-${new Date(currentMonthView.getTime() - 86400000).getDate()}`);
-            data.push(weekCount);
         }
+        const avgValue = activeDays > 0 ? totalValue / activeDays : 0;
+
         const sStats = getStreakStats(target);
         document.getElementById('streakContainer').innerHTML = `
             <div style="margin-top:10px; border-bottom:1px solid var(--border); padding-bottom:15px;">
@@ -189,7 +204,7 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
                     </div>
                 `).join('') : '<p style="text-align:center; color:var(--subtext); font-size:0.8em;">Nessuna sequenza</p>'}
             </div>`;
-        
+
         let hExpected = 0;
         const f = h.frequency || 'daily';
         if (f === 'daily') hExpected = lastDay;
@@ -202,19 +217,39 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         document.getElementById('statPerc').innerText = Math.round((totalCompletes / (hExpected || 1)) * 100) + "%";
         document.getElementById('statCount').innerText = totalCompletes;
         document.getElementById('statLabelCount').innerText = "VOLTE NEL MESE (SU " + hExpected + ")";
+
+        const unit = (h.type === 'value' && h.unit) ? ' ' + h.unit : '';
+        document.getElementById('statTotal').innerText = parseFloat(totalValue.toFixed(1)) + unit;
+        document.getElementById('statLabelTotal').innerText = "TOTALE MESE";
+        document.getElementById('statAvg').innerText = parseFloat(avgValue.toFixed(2)) + unit;
+        document.getElementById('statLabelAvg').innerText = h.type === 'value' ? "MEDIA (GG ATTIVI)" : "MEDIA GIORNALIERA";
+
         renderCalendarBase(document.getElementById('miniCalendar'), statsMonth, false, () => {}, target);
     }
 
     if (window.myChart) window.myChart.destroy();
+    const singleHabit = target !== 'all' ? habits.find(x => x.id === target) : null;
+    const barColor = singleHabit?.color || '#4a90e2';
+    const isNumeric = singleHabit?.type === 'value';
     window.myChart = new Chart(document.getElementById('statsChart'), {
         type: 'bar',
-        data: { labels, datasets: [{ label: 'Attività', data, backgroundColor: '#4a90e2', borderRadius: 6 }] },
-        options: { 
-            plugins: { legend: { display: false } }, 
-            scales: { 
-                y: { beginAtZero: true, ticks: { stepSize: 1, color: isDark ? '#aaa' : '#666' }, grid: { color: isDark ? '#333' : '#eee' } },
-                x: { ticks: { color: isDark ? '#aaa' : '#666' }, grid: { display: false } }
-            } 
+        data: { labels, datasets: [{ label: 'Valore', data, backgroundColor: barColor, borderRadius: 6 }] },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: isDark ? '#aaa' : '#666',
+                        ...(isNumeric ? {} : { stepSize: 1 })
+                    },
+                    grid: { color: isDark ? '#333' : '#eee' }
+                },
+                x: {
+                    ticks: { color: isDark ? '#aaa' : '#666', maxTicksLimit: 10, maxRotation: 0 },
+                    grid: { display: false }
+                }
+            }
         }
     });
 }

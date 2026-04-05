@@ -45,10 +45,12 @@ function corePopulateEditor(habitId = null) {
         const h = habits.find(x => x.id === habitId);
         input.value = h.name;
         type.value = h.type;
+        document.querySelectorAll('#segType .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === h.type));
         target.value = h.target;
         unit.value = h.unit;
         increment.value = h.increment;
         freq.value = h.frequency || 'daily';
+        document.querySelectorAll('#segFreq .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === (h.frequency || 'daily')));
         freqWeekly.value = h.frequencyWeekly || 3;
         emoji.value = h.emoji || '';
         colorInput.value = h.color || '#4a90e2';
@@ -82,10 +84,12 @@ function corePopulateEditor(habitId = null) {
     } else {
         input.value = '';
         type.value = 'binary';
+        document.querySelectorAll('#segType .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === 'binary'));
         target.value = 1;
         unit.value = '';
         increment.value = 1;
         freq.value = 'daily';
+        document.querySelectorAll('#segFreq .seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.val === 'daily'));
         freqWeekly.value = 3;
         emoji.value = '';
         colorInput.value = '#4a90e2';
@@ -257,12 +261,39 @@ function coreFillSelector() {
     const sel = document.getElementById('habitSelector');
     if (!sel) return;
     const prev = sel.value;
-    let html = '<option value="all">📊 Panoramica Generale (Mese)</option>';
+    let html = '<option value="all">\uD83D\uDCCA Panoramica Generale (Mese)</option>';
     habits.forEach(h => {
-        const name = h.archived ? `📦 [ARCHIVIATA] ${h.name}` : `🎯 Analisi: ${h.name}`;
+        const name = h.archived ? `\uD83D\udce6 [ARCHIVIATA] ${h.name}` : `\uD83C\uDFAF Analisi: ${h.name}`;
         html += `<option value="${h.id}" ${prev === h.id ? 'selected' : ''}>${name}</option>`;
     });
     sel.innerHTML = html;
+}
+
+// --- LOGICA CLICK CONTESTUALE ---
+// Se la scheda Analisi è attiva: mostra le stats dell'abitudine cliccata.
+// Se la scheda Calendario è attiva: comportamento normale (toggle / progress).
+function handleHabitButtonClick(id, delta) {
+    const statsSection = document.getElementById('stats-section');
+    const statsActive = statsSection && !statsSection.classList.contains('hidden');
+
+    if (statsActive) {
+        // Scheda Analisi: seleziona l'abitudine nel selettore e aggiorna le statistiche
+        const sel = document.getElementById('habitSelector');
+        if (sel) {
+            sel.value = id;
+            coreFillSelector();
+            if (window.onHabitSelectorChange) window.onHabitSelectorChange();
+            // Porta l'utente alla sezione statistiche (utile se deve scrollare)
+            statsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } else {
+        // Scheda Calendario: comportamento originale
+        if (delta) {
+            window.dispatchEvent(new CustomEvent('change-progress', { detail: { id, delta } }));
+        } else {
+            window.dispatchEvent(new CustomEvent('toggle-check', { detail: id }));
+        }
+    }
 }
 
 function renderCalendarBase(container, dateObj, isMain, onDateSelect, targetHabitId = null) {
@@ -342,121 +373,170 @@ function getCompletionsInWeek(habitId, dateStr) {
 function coreRenderAll(viewMonth, onDateSelect) {
     const grid = document.getElementById('habitGrid');
     grid.className = "habit-grid";
-    const dayLogs = logs[selectedDate] || {};
-    const dObj = new Date(selectedDate);
-    const dayOfWeek = dObj.getDay();
-    
-    // Filtro abitudini attivo per la data selezionata (escludendo le archiviate)
-    const filteredHabits = habits.filter(h => {
-        if (h.archived) return false;
-        
-        // Migrazione on-the-fly se manca frequenza
-        if (!h.frequency) h.frequency = 'daily';
 
-        if (h.frequency === 'daily') return true;
-        if (h.frequency === 'days') {
-            return h.frequencyDays && h.frequencyDays.includes(dayOfWeek);
-        }
-        if (h.frequency === 'weekly') {
-            const count = getCompletionsInWeek(h.id, selectedDate);
-            const target = h.frequencyWeekly || 3;
-            // Mostra se non ancora completata per la settimana
-            // OPPURE se è già stata fatta proprio OGGI (per permettere di vederla se appena segnata)
-            const doneToday = (h.type === 'value' ? dayLogs[h.id] >= h.target : dayLogs[h.id] === true);
-            return count < target || doneToday;
-        }
-        return true;
-    });
+    const statsSection = document.getElementById('stats-section');
+    const statsActive = statsSection && !statsSection.classList.contains('hidden');
 
-    grid.innerHTML = filteredHabits.map((h, i) => {
-        const val = dayLogs[h.id];
-        const hColor = h.color || '#4a90e2';
-        const emojiHtml = h.emoji ? `<span class="habit-emoji">${h.emoji}</span>` : '';
-        
-        let content = '';
-        if (h.type === 'value') {
-            const current = val || 0;
-            const completed = current >= h.target;
-            const perc = Math.min(100, (current / h.target) * 100);
-            
-            content = `
-                <div class="habit-btn habit-numeric ${completed ? 'completed' : ''}" 
-                    data-id="${h.id}" data-delta="${h.increment}"
-                    style="cursor:pointer; border-color:${hColor}; color:${completed ? 'white' : hColor}">
-                    <div class="habit-progress-bg" style="background:${hColor}; height:${perc}%; opacity:${completed ? 1 : 0.25}"></div>
+    if (statsActive) {
+        // === STATS MODE: bottoni di navigazione (solo nome+emoji, niente obiettivi) ===
+        const activeId = document.getElementById('habitSelector')?.value || 'all';
+        const allHabits = habits.filter(h => !h.archived);
+
+        const panoramicaActive = activeId === 'all';
+        let html = `<div class="habit-item">
+            <div class="habit-btn stats-nav-btn" data-id="all"
+                style="cursor:pointer; border-color:#4a90e2; ${panoramicaActive ? 'background:#4a90e2; color:white; box-shadow:0 3px 10px rgba(74,144,226,0.4);' : 'color:#4a90e2;'}">
+                <span class="habit-name">📊 Panoramica</span>
+            </div>
+        </div>`;
+
+        html += allHabits.map(h => {
+            const hColor = h.color || '#4a90e2';
+            const isActive = activeId === h.id;
+            const emojiHtml = h.emoji ? `<span class="habit-emoji">${h.emoji}</span>` : '';
+            return `<div class="habit-item">
+                <div class="habit-btn stats-nav-btn" data-id="${h.id}"
+                    style="cursor:pointer; border-color:${hColor}; ${isActive ? `background:${hColor}; color:white; box-shadow:0 3px 10px rgba(0,0,0,0.2);` : `color:${hColor};`}">
                     <span class="habit-name">${emojiHtml} ${h.name}</span>
-                    <div class="progress-val" data-manual="${h.id}" style="color:${completed ? 'white' : 'var(--primary)'}">
-                        ${current} / ${h.target} <span class="unit" style="color:inherit">${h.unit}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        grid.innerHTML = html;
+
+        // Click handlers: navigazione statistiche (nessun long-press)
+        grid.querySelectorAll('.stats-nav-btn').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.dataset.id;
+                const sel = document.getElementById('habitSelector');
+                if (!sel) return;
+                sel.value = id;
+                coreFillSelector();
+                if (window.onHabitSelectorChange) window.onHabitSelectorChange();
+                statsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // Aggiorna lo stato visivo attivo senza full re-render
+                grid.querySelectorAll('.stats-nav-btn').forEach(b => {
+                    const bH = habits.find(x => x.id === b.dataset.id);
+                    const bColor = b.dataset.id === 'all' ? '#4a90e2' : (bH?.color || '#4a90e2');
+                    b.style.cssText = `cursor:pointer; border-color:${bColor}; color:${bColor};`;
+                });
+                const aH = id === 'all' ? null : habits.find(x => x.id === id);
+                const aColor = id === 'all' ? '#4a90e2' : (aH?.color || '#4a90e2');
+                btn.style.cssText = `cursor:pointer; border-color:${aColor}; background:${aColor}; color:white; box-shadow:0 3px 10px rgba(0,0,0,0.2);`;
+            };
+        });
+
+    } else {
+        // === CALENDAR MODE: codice originale invariato ===
+        const dayLogs = logs[selectedDate] || {};
+        const dObj = new Date(selectedDate);
+        const dayOfWeek = dObj.getDay();
+
+        // Filtro abitudini attivo per la data selezionata (escludendo le archiviate)
+        const filteredHabits = habits.filter(h => {
+            if (h.archived) return false;
+
+            // Migrazione on-the-fly se manca frequenza
+            if (!h.frequency) h.frequency = 'daily';
+
+            if (h.frequency === 'daily') return true;
+            if (h.frequency === 'days') {
+                return h.frequencyDays && h.frequencyDays.includes(dayOfWeek);
+            }
+            if (h.frequency === 'weekly') {
+                const count = getCompletionsInWeek(h.id, selectedDate);
+                const target = h.frequencyWeekly || 3;
+                const doneToday = (h.type === 'value' ? dayLogs[h.id] >= h.target : dayLogs[h.id] === true);
+                return count < target || doneToday;
+            }
+            return true;
+        });
+
+        grid.innerHTML = filteredHabits.map((h, i) => {
+            const val = dayLogs[h.id];
+            const hColor = h.color || '#4a90e2';
+            const emojiHtml = h.emoji ? `<span class="habit-emoji">${h.emoji}</span>` : '';
+
+            let content = '';
+            if (h.type === 'value') {
+                const current = val || 0;
+                const completed = current >= h.target;
+                const perc = Math.min(100, (current / h.target) * 100);
+
+                content = `
+                    <div class="habit-btn habit-numeric ${completed ? 'completed' : ''}"
+                        data-id="${h.id}" data-delta="${h.increment}"
+                        style="cursor:pointer; border-color:${hColor}; color:${completed ? 'white' : hColor}">
+                        <div class="habit-progress-bg" style="background:${hColor}; height:${perc}%; opacity:${completed ? 1 : 0.25}"></div>
+                        <span class="habit-name">${emojiHtml} ${h.name}</span>
+                        <div class="progress-val" data-manual="${h.id}" style="color:${completed ? 'white' : 'var(--primary)'}">
+                            ${current} / ${h.target} <span class="unit" style="color:inherit">${h.unit}</span>
+                        </div>
                     </div>
-                </div>
-            `;
-        } else {
-            const isActive = val === true;
-            content = `
-                <div class="habit-btn ${isActive ? 'active' : ''}" data-id="${h.id}" 
-                    style="cursor:pointer; border-color:${hColor}; color:${isActive ? 'white' : hColor}">
-                    <div class="habit-progress-bg" style="background:${hColor}; height:${isActive ? '100%' : '0%'}; opacity:${isActive ? 1 : 0}"></div>
-                    <span class="habit-name">${emojiHtml} ${h.name}</span>
-                </div>
-            `;
-        }
-        return `<div class="habit-item">${content}</div>`;
-    }).join('');
-
-    // Eventi Click e Long-press
-    grid.querySelectorAll('.habit-btn').forEach(btn => {
-        const id = btn.dataset.id;
-        const delta = parseFloat(btn.dataset.delta);
-
-        const startLp = (e) => {
-            if (lpTimer) clearTimeout(lpTimer);
-            lpTimer = setTimeout(() => {
-                lpTimer = null;
-                window.dispatchEvent(new CustomEvent('edit-habit', { detail: id }));
-            }, 700);
-        };
-        const resetLp = () => {
-            if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; return true; }
-            return false;
-        };
-
-        btn.onmousedown = startLp;
-        btn.ontouchstart = (e) => {
-            // Se tocchi il valore manuale, non avviare LP qui (gestito da stopPropagation)
-            startLp(e);
-        };
-
-        btn.onmouseup = (e) => { 
-            if(resetLp()) { 
-                if (delta) window.dispatchEvent(new CustomEvent('change-progress', { detail: { id, delta } }));
-                else window.dispatchEvent(new CustomEvent('toggle-check', { detail: id }));
+                `;
+            } else {
+                const isActive = val === true;
+                content = `
+                    <div class="habit-btn ${isActive ? 'active' : ''}" data-id="${h.id}"
+                        style="cursor:pointer; border-color:${hColor}; color:${isActive ? 'white' : hColor}">
+                        <div class="habit-progress-bg" style="background:${hColor}; height:${isActive ? '100%' : '0%'}; opacity:${isActive ? 1 : 0}"></div>
+                        <span class="habit-name">${emojiHtml} ${h.name}</span>
+                    </div>
+                `;
             }
-        };
+            return `<div class="habit-item">${content}</div>`;
+        }).join('');
 
-        btn.ontouchend = (e) => {
-            if(resetLp()) {
-                e.preventDefault(); // Evita click fantasma
-                if (delta) window.dispatchEvent(new CustomEvent('change-progress', { detail: { id, delta } }));
-                else window.dispatchEvent(new CustomEvent('toggle-check', { detail: id }));
-            }
-        };
-    });
+        // Eventi Click e Long-press (solo in modalità Calendario)
+        grid.querySelectorAll('.habit-btn').forEach(btn => {
+            const id = btn.dataset.id;
+            const delta = parseFloat(btn.dataset.delta);
 
-    grid.querySelectorAll('.progress-val').forEach(pv => {
-        pv.onclick = (e) => {
-            e.stopPropagation();
-            if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
-            window.dispatchEvent(new CustomEvent('manual-progress', { detail: pv.dataset.manual }));
-        };
-        // Impedisci l'avvio del long-press del padre quando si tocca il valore
-        pv.onmousedown = (e) => e.stopPropagation();
-        pv.ontouchstart = (e) => e.stopPropagation();
-    });
+            const startLp = (e) => {
+                if (lpTimer) clearTimeout(lpTimer);
+                lpTimer = setTimeout(() => {
+                    lpTimer = null;
+                    window.dispatchEvent(new CustomEvent('edit-habit', { detail: id }));
+                }, 700);
+            };
+            const resetLp = () => {
+                if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; return true; }
+                return false;
+            };
 
+            btn.onmousedown = startLp;
+            btn.ontouchstart = (e) => { startLp(e); };
+
+            btn.onmouseup = (e) => {
+                if(resetLp()) { handleHabitButtonClick(id, delta); }
+            };
+
+            btn.ontouchend = (e) => {
+                if(resetLp()) {
+                    e.preventDefault();
+                    handleHabitButtonClick(id, delta);
+                }
+            };
+        });
+
+        grid.querySelectorAll('.progress-val').forEach(pv => {
+            pv.onclick = (e) => {
+                e.stopPropagation();
+                if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+                window.dispatchEvent(new CustomEvent('manual-progress', { detail: pv.dataset.manual }));
+            };
+            pv.onmousedown = (e) => e.stopPropagation();
+            pv.ontouchstart = (e) => e.stopPropagation();
+        });
+    }
+
+    // Aggiornamenti comuni (sempre, indipendente dalla tab)
     const d = new Date(selectedDate);
     document.getElementById('dateLabel').innerText = d.toDateString() === new Date().toDateString() ? "Oggi" : d.toLocaleDateString('it-IT');
     document.getElementById('monthYear').innerText = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(viewMonth);
-    
+
     const calGrid = document.getElementById('calendarGrid');
     renderCalendarBase(calGrid, viewMonth, true, onDateSelect);
 }
+
