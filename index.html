@@ -45,12 +45,7 @@
         <div id="habitGrid" class="habit-grid"></div>
     </div>
 
-    <div class="section-tabs">
-        <div class="s-tab active" id="tab-cal" onclick="switchSection('calendar')">📅 Calendario</div>
-        <div class="s-tab" id="tab-stats" onclick="switchSection('stats')">📊 Analisi</div>
-    </div>
-
-    <div id="calendar-section" class="card" style="border-radius: 0 0 20px 20px; margin-top: -1px;">
+    <div id="calendar-section" class="card">
         <div class="nav-header">
             <button class="btn-action" onclick="changeMonth(-1)">◀</button>
             <b id="monthYear"></b>
@@ -59,8 +54,8 @@
         <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
-    <div id="stats-section" class="card hidden" style="border-radius: 0 0 20px 20px; margin-top: -1px;">
-        <select id="habitSelector" onchange="onHabitSelectorChange()"></select>
+    <div id="stats-section" class="card hidden">
+        <select id="habitSelector" onchange="onHabitSelectorChange()" style="display:none"></select>
         
         <div class="nav-header" style="margin-top:10px;">
             <button class="btn-action" onclick="changeStatsDate(-1)">◀</button>
@@ -75,6 +70,16 @@
             <div class="stat-card">
                 <span style="display:block; font-size:1.3em; font-weight:bold; color:var(--primary);" id="statCount">0</span>
                 <span style="font-size:0.7em; color:var(--subtext); font-weight:bold;" id="statLabelCount">VOLTE</span>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <div class="stat-card">
+                <span style="display:block; font-size:1.3em; font-weight:bold; color:var(--primary);" id="statTotal">—</span>
+                <span style="font-size:0.7em; color:var(--subtext); font-weight:bold;" id="statLabelTotal">TOTALE MESE</span>
+            </div>
+            <div class="stat-card">
+                <span style="display:block; font-size:1.3em; font-weight:bold; color:var(--primary);" id="statAvg">—</span>
+                <span style="font-size:0.7em; color:var(--subtext); font-weight:bold;" id="statLabelAvg">MEDIA</span>
             </div>
         </div>
         <canvas id="statsChart" style="margin-bottom: 20px; max-height: 200px;"></canvas>
@@ -97,8 +102,22 @@
     </div>
 </div>
 
-<!-- Pulsante Flottante -->
-<button class="fab" onclick="toggleEditor(true)" title="Aggiungi Abitudine">+</button>
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+    <div class="s-tab active" id="tab-cal" onclick="switchSection('calendar')">
+        <div class="nav-icon">📅</div>
+        <span>Calendario</span>
+    </div>
+    
+    <div class="nav-fab-wrapper">
+        <button class="nav-fab" onclick="toggleEditor(true)" title="Aggiungi Abitudine">+</button>
+    </div>
+
+    <div class="s-tab" id="tab-stats" onclick="switchSection('stats')">
+        <div class="nav-icon">📊</div>
+        <span>Analisi</span>
+    </div>
+</nav>
 
 <!-- Pannello Bottom-Sheet -->
 <div id="editorOverlay" class="editor-overlay hidden" onclick="toggleEditor(false)">
@@ -108,103 +127,96 @@
             <button class="btn-close" onclick="toggleEditor(false)">✕</button>
         </div>
                 <div class="editor-content">
-                <div class="form-group">
-                    <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">NOME ABITUDINE</label>
-                    <input type="text" id="habitInput" placeholder="es. Bere Acqua">
-                </div>
+                    
+                    <div class="form-group">
+                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">1. NOME ABITUDINE</label>
+                        <input type="text" id="habitInput" placeholder="es. Bere Acqua">
+                    </div>
                 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:20px;">
-                    <div class="form-group" style="grid-column: span 1;">
-                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">EMOJI</label>
-                        <input type="text" id="habitEmoji" placeholder="es. 👟" style="text-align:center; font-size:1.2em;">
-                    </div>
-                    <div class="form-group" style="grid-column: span 1;">
-                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">TIPO</label>
-                        <select id="habitType" onchange="updateAdvUI()">
-                            <option value="binary">Sì/No</option>
-                            <option value="value">Valore Numerico</option>
-                        </select>
-                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr; gap:15px; margin-top:15px;">
 
-                    <div style="grid-column: span 2; margin-bottom:10px;">
-                        <div class="emoji-selector">
-                            <span class="emoji-opt">🏃‍♂️</span>
-                            <span class="emoji-opt">🏋️‍♂️</span>
-                            <span class="emoji-opt">💧</span>
-                            <span class="emoji-opt">🍎</span>
-                            <span class="emoji-opt">🥗</span>
-                            <span class="emoji-opt">🧘‍♂️</span>
-                            <span class="emoji-opt">🚵‍♂️</span>
-                            <span class="emoji-opt">🚶‍♂️</span>
-                            <span class="emoji-opt">📚</span>
-                            <span class="emoji-opt">💻</span>
-                            <span class="emoji-opt">✍️</span>
-                            <span class="emoji-opt">💡</span>
-                            <span class="emoji-opt">🎨</span>
-                            <span class="emoji-opt">🎸</span>
-                            <span class="emoji-opt">🌿</span>
-                            <span class="emoji-opt">🚭</span>
-                            <span class="emoji-opt">💰</span>
-                            <span class="emoji-opt">⏰</span>
-                            <span class="emoji-opt">🛌</span>
-                            <span class="emoji-opt">🦷</span>
+                        <!-- EMOJI -->
+
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">2. EMOJI</label>
+                            <input type="hidden" id="habitEmoji" value="">
+                            <div class="emoji-selector" style="display:flex; flex-wrap:wrap; gap:6px; background:var(--tab-bg); padding:12px; border-radius:12px; max-height:120px; overflow-y:auto; justify-content:flex-start; margin-top:8px;">
+                                <span class="emoji-opt">🏃‍♂️</span><span class="emoji-opt">🏋️‍♂️</span><span class="emoji-opt">💧</span><span class="emoji-opt">🍎</span><span class="emoji-opt">🥗</span><span class="emoji-opt">🧘‍♂️</span><span class="emoji-opt">🚵‍♂️</span><span class="emoji-opt">🚶‍♂️</span><span class="emoji-opt">📚</span><span class="emoji-opt">💻</span><span class="emoji-opt">✍️</span><span class="emoji-opt">💡</span><span class="emoji-opt">🎨</span><span class="emoji-opt">🎸</span><span class="emoji-opt">🌿</span><span class="emoji-opt">🚭</span><span class="emoji-opt">💰</span><span class="emoji-opt">⏰</span><span class="emoji-opt">🛌</span><span class="emoji-opt">🦷</span>
+                            </div>
+                        </div>
+
+
+                        <!-- COLORE -->
+                        <div class="form-group" style="margin-bottom:0; border-top:1px solid var(--border); padding-top:15px;">
+                            <label style="font-size:0.8em; font-weight:bold; color:var(--subtext); margin-bottom:10px; display:block;">3. COLORE</label>
+                            <div class="color-selector">
+                                <input type="hidden" id="habitColor" value="#4a90e2">
+                                <div class="color-dot active" style="background:#4a90e2" data-color="#4a90e2"></div>
+                                <div class="color-dot" style="background:#2ecc71" data-color="#2ecc71"></div>
+                                <div class="color-dot" style="background:#ff4757" data-color="#ff4757"></div>
+                                <div class="color-dot" style="background:#f39c12" data-color="#f39c12"></div>
+                                <div class="color-dot" style="background:#9b59b6" data-color="#9b59b6"></div>
+                                <div class="color-dot" style="background:#ff6b81" data-color="#ff6b81"></div>
+                                <div class="color-dot" style="background:#1abc9c" data-color="#1abc9c"></div>
+                                <div class="color-dot" style="background:#34495e" data-color="#34495e"></div>
+                            </div>
+                        </div>
+
+                        <!-- TIPO -->
+                        <div class="form-group" style="margin-bottom:0; border-top:1px solid var(--border); padding-top:15px;">
+                            <label style="font-size:0.8em; font-weight:bold; color:var(--subtext); margin-bottom:10px; display:block;">4. TIPO DI OBIETTIVO</label>
+                            <input type="hidden" id="habitType" value="binary">
+                            <div class="seg-control" id="segType">
+                                <div class="seg-btn active" data-val="binary">Obiettivo Sì / No</div>
+                                <div class="seg-btn" data-val="value">Valore Numerico</div>
+                            </div>
+                        </div>
+
+                        <!-- Opzioni Avanzate del Tipo -->
+                        <div class="adv-field" style="grid-template-columns: 1fr 1fr; gap:10px; background:var(--tab-bg); padding:15px; border-radius:12px; display:none;">
+                            <div>
+                                <label style="font-size:0.75em; font-weight:bold; color:var(--subtext);">TARGET</label>
+                                <input type="number" id="habitTarget" value="1" step="any" style="background:var(--card)">
+                            </div>
+                            <div>
+                                <label style="font-size:0.75em; font-weight:bold; color:var(--subtext);">UNITÀ DI MISURA</label>
+                                <input type="text" id="habitUnit" placeholder="es. Litri" style="background:var(--card)">
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <label style="font-size:0.75em; font-weight:bold; color:var(--subtext);">INCREMENTO RAPIDO (+)</label>
+                                <input type="number" id="habitIncrement" value="1" step="any" style="background:var(--card)">
+                            </div>
+                        </div>
+
+                        <!-- FREQUENZA -->
+                        <div class="form-group" style="margin-bottom:0; border-top:1px solid var(--border); padding-top:15px;">
+                            <label style="font-size:0.8em; font-weight:bold; color:var(--subtext); margin-bottom:10px; display:block;">5. FREQUENZA</label>
+                            <input type="hidden" id="habitFrequency" value="daily">
+                            <div class="seg-control" id="segFreq">
+                                <div class="seg-btn active" data-val="daily">Tutti i giorni</div>
+                                <div class="seg-btn" data-val="days">Giorni specifici</div>
+                                <div class="seg-btn" data-val="weekly">X a settimana</div>
+                            </div>
+                        </div>
+
+                        <div id="freqDaysPanel" class="hidden form-group" style="background:var(--tab-bg); padding:15px; border-radius:12px; margin-bottom:10px;">
+                            <label style="font-size:0.75em; color:var(--subtext); margin-bottom:8px; display:block; font-weight:bold;">SELEZIONA I GIORNI:</label>
+                            <div class="day-selector">
+                                <span class="freq-day" data-day="1">L</span>
+                                <span class="freq-day" data-day="2">M</span>
+                                <span class="freq-day" data-day="3">M</span>
+                                <span class="freq-day" data-day="4">G</span>
+                                <span class="freq-day" data-day="5">V</span>
+                                <span class="freq-day" data-day="6">S</span>
+                                <span class="freq-day" data-day="0">D</span>
+                            </div>
+                        </div>
+
+                        <div id="freqWeeklyPanel" class="hidden form-group" style="background:var(--tab-bg); padding:15px; border-radius:12px; margin-bottom:10px;">
+                            <label style="font-size:0.75em; color:var(--subtext); margin-bottom:8px; display:block; font-weight:bold;">QUANTE VOLTE A SETTIMANA:</label>
+                            <input type="number" id="habitFreqWeekly" value="3" min="1" max="7" style="width:100%; background:var(--card)">
                         </div>
                     </div>
-
-                    <div style="grid-column: span 2; margin-bottom:10px;">
-                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext); margin-bottom:10px; display:block;">COLORE</label>
-                        <div class="color-selector">
-                            <input type="hidden" id="habitColor" value="#4a90e2">
-                            <div class="color-dot active" style="background:#4a90e2" data-color="#4a90e2"></div>
-                            <div class="color-dot" style="background:#2ecc71" data-color="#2ecc71"></div>
-                            <div class="color-dot" style="background:#ff4757" data-color="#ff4757"></div>
-                            <div class="color-dot" style="background:#f39c12" data-color="#f39c12"></div>
-                            <div class="color-dot" style="background:#9b59b6" data-color="#9b59b6"></div>
-                            <div class="color-dot" style="background:#ff6b81" data-color="#ff6b81"></div>
-                            <div class="color-dot" style="background:#1abc9c" data-color="#1abc9c"></div>
-                            <div class="color-dot" style="background:#34495e" data-color="#34495e"></div>
-                        </div>
-                    </div>
-                    <div class="adv-field">
-                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">TARGET</label>
-                        <input type="number" id="habitTarget" value="1" step="any">
-                    </div>
-                    <div class="adv-field">
-                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">UNITÀ</label>
-                        <input type="text" id="habitUnit" placeholder="es. L">
-                    </div>
-                    <div class="adv-field" style="grid-column: span 2;">
-                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">INCREMENTO RAPIDO</label>
-                        <input type="number" id="habitIncrement" value="1" step="any">
-                    </div>
-
-                    <div style="grid-column: span 2; margin-top:10px; border-top:1px solid var(--border); padding-top:15px;">
-                        <label style="font-size:0.8em; font-weight:bold; color:var(--subtext);">FREQUENZA</label>
-                        <select id="habitFrequency" onchange="updateFreqUI()">
-                            <option value="daily">Ogni giorno</option>
-                            <option value="days">Giorni specifici</option>
-                            <option value="weekly">Settimanale</option>
-                        </select>
-                    </div>
-
-                    <div id="freqDaysPanel" class="hidden" style="grid-column: span 2; margin-top:5px;">
-                        <label style="font-size:0.75em; color:var(--subtext); margin-bottom:8px; display:block;">SELEZIONA GIORNI:</label>
-                        <div class="day-selector">
-                            <span class="freq-day" data-day="1">L</span>
-                            <span class="freq-day" data-day="2">M</span>
-                            <span class="freq-day" data-day="3">M</span>
-                            <span class="freq-day" data-day="4">G</span>
-                            <span class="freq-day" data-day="5">V</span>
-                            <span class="freq-day" data-day="6">S</span>
-                            <span class="freq-day" data-day="0">D</span>
-                        </div>
-                    </div>
-
-                    <div id="freqWeeklyPanel" class="hidden" style="grid-column: span 2; margin-top:5px;">
-                        <label style="font-size:0.75em; color:var(--subtext); margin-bottom:5px; display:block;">VOLTE A SETTIMANA:</label>
-                        <input type="number" id="habitFreqWeekly" value="3" min="1" max="7">
-                    </div>
-                </div>
 
                 <div style="margin-top:25px; display:flex; flex-direction:column; gap:10px;">
                     <button class="btn-action" id="btnConfirmHabit" onclick="addHabit()" style="width:100%; padding:15px;">AGGIUNGI ABITUDINE</button>
