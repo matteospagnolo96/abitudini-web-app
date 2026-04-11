@@ -1,3 +1,8 @@
+// --- HELPER DATE LOCALI ---
+function getLocalISODate(d = new Date()) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 // --- CONFIGURAZIONE SUPABASE ---
 const SUPABASE_URL = "https://jugivbvvpywoiejzcxbl.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1Z2l2YnZ2cHl3b2llanpjeGJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODA0MzEsImV4cCI6MjA5MDI1NjQzMX0.IrQ9cUIUClD25XnBgVA_wC7swbG_vMU-CHPgNFWgFJ8";
@@ -145,7 +150,7 @@ function coreExportData() {
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `backup_habit_tracker_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `backup_habit_tracker_${getLocalISODate()}.json`;
     a.click();
 }
 
