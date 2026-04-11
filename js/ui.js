@@ -1,5 +1,5 @@
 // --- STATO UI GLOBALE ---
-let selectedDate = new Date().toISOString().split('T')[0];
+let selectedDate = getLocalISODate();
 let lpTimer = null;
 
 function setSelectedDate(date) {
@@ -207,40 +207,47 @@ function coreDeleteHabitPermanent(onComplete) {
 }
 
 
-function coreToggleCheck(habitId, onComplete) {
-    if (!logs[selectedDate]) logs[selectedDate] = {};
+function coreToggleCheck(habitId, onComplete, targetDate = selectedDate) {
+    if (!logs[targetDate]) logs[targetDate] = {};
     
-    if (logs[selectedDate][habitId]) {
-        delete logs[selectedDate][habitId];
+    if (logs[targetDate][habitId]) {
+        delete logs[targetDate][habitId];
+        if (Object.keys(logs[targetDate]).length === 0) delete logs[targetDate];
     } else {
-        logs[selectedDate][habitId] = true;
+        logs[targetDate][habitId] = true;
     }
     save(onComplete);
 }
 
-function coreChangeProgress(habitId, delta, onComplete) {
-    if (!logs[selectedDate]) logs[selectedDate] = {};
+function coreChangeProgress(habitId, delta, onComplete, targetDate = selectedDate) {
+    if (!logs[targetDate]) logs[targetDate] = {};
     
-    let current = logs[selectedDate][habitId] || 0;
+    let current = logs[targetDate][habitId] || 0;
     if (typeof current !== 'number') current = 0;
     
     let newVal = Math.max(0, current + delta);
-    if (newVal === 0) delete logs[selectedDate][habitId];
-    else logs[selectedDate][habitId] = newVal;
+    if (newVal === 0) {
+        delete logs[targetDate][habitId];
+        if (Object.keys(logs[targetDate]).length === 0) delete logs[targetDate];
+    }
+    else logs[targetDate][habitId] = newVal;
     
     save(onComplete);
 }
 
-function coreSetManualProgress(habitId, onComplete) {
+function coreSetManualProgress(habitId, onComplete, targetDate = selectedDate) {
     const habit = habits.find(h => h.id === habitId);
-    let current = logs[selectedDate]?.[habitId] || 0;
-    const val = prompt(`Inserisci valore manuale per ${habit.name} (${habit.unit}):`, current);
+    let current = logs[targetDate]?.[habitId] || 0;
+    const val = prompt(`Inserisci valore manuale per ${habit.name} (${habit.unit}) in data ${new Date(targetDate).toLocaleDateString('it-IT')}:`, current);
     if (val !== null) {
         const num = parseFloat(val.replace(',', '.'));
         if (!isNaN(num)) {
-            if (!logs[selectedDate]) logs[selectedDate] = {};
-            if (num <= 0) delete logs[selectedDate][habitId];
-            else logs[selectedDate][habitId] = num;
+            if (!logs[targetDate]) logs[targetDate] = {};
+            if (num <= 0) {
+                delete logs[targetDate][habitId];
+                if (Object.keys(logs[targetDate]).length === 0) delete logs[targetDate];
+            }
+            else logs[targetDate][habitId] = num;
             save(onComplete);
         }
     }
@@ -351,7 +358,8 @@ function renderCalendarBase(container, dateObj, isMain, onDateSelect, targetHabi
 }
 
 function getCompletionsInWeek(habitId, dateStr) {
-    const d = new Date(dateStr);
+    const [y, m, dNum] = dateStr.split('-');
+    const d = new Date(y, m - 1, dNum);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1); // ISO Monday
     const monday = new Date(d.setDate(diff));
@@ -362,7 +370,7 @@ function getCompletionsInWeek(habitId, dateStr) {
     for (let i = 0; i < 7; i++) {
         const checkDate = new Date(monday);
         checkDate.setDate(monday.getDate() + i);
-        const s = checkDate.toISOString().split('T')[0];
+        const s = getLocalISODate(checkDate);
         const val = logs[s]?.[habitId];
         const isDone = (h.type === 'value' ? val >= h.target : val === true);
         if (isDone) count++;

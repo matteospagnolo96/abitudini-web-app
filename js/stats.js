@@ -19,7 +19,7 @@ function getStreakStats(habitId) {
     let temp = new Date(firstLog);
 
     while (temp <= today) {
-        let dStr = temp.toISOString().split('T')[0];
+        let dStr = getLocalISODate(temp);
         let day = temp.getDay();
         let show = false;
         if (h.frequency === 'daily') show = true;
@@ -58,8 +58,8 @@ function getStreakStats(habitId) {
         if (sc.count > 0) streaks.push(sc);
     }
 
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = getLocalISODate(new Date(Date.now() - 86400000));
+    const todayStr = getLocalISODate(today);
     const last = streaks[streaks.length - 1];
     
     let currentCount = 0;
@@ -96,7 +96,6 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
             
             let completedToday = 0;
             let activeTodayCount = 0;
-            let dayValue = 0; // somma valori registrati in questo giorno
 
             habits.forEach(h => {
                 const freq = h.frequency || 'daily';
@@ -109,17 +108,10 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
                 const val = dayLogs[h.id];
                 const isDone = (h.type === 'value' ? val >= h.target : val === true);
                 if (isDone) { hMap[h.id]++; completedToday++; }
-
-                // Accumula valore reale per grafico e totali
-                if (h.type === 'value' && typeof val === 'number' && val > 0) {
-                    dayValue += val;
-                } else if (h.type === 'binary' && val === true) {
-                    dayValue += 1;
-                }
             });
 
             labels.push(d);
-            data.push(parseFloat(dayValue.toFixed(2)));
+            data.push(completedToday);
             totalProgress += completedToday;
             if (activeTodayCount > 0 && completedToday >= activeTodayCount) perfectDays++;
         }
@@ -224,32 +216,148 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         document.getElementById('statAvg').innerText = parseFloat(avgValue.toFixed(2)) + unit;
         document.getElementById('statLabelAvg').innerText = h.type === 'value' ? "MEDIA (GG ATTIVI)" : "MEDIA GIORNALIERA";
 
-        renderCalendarBase(document.getElementById('miniCalendar'), statsMonth, false, () => {}, target);
+        renderCalendarBase(document.getElementById('miniCalendar'), statsMonth, false, (dStr) => {
+            if (h.type === 'value') {
+                coreSetManualProgress(target, () => {
+                    coreRenderStats(statsMonth, renderCalendarBase);
+                }, dStr);
+            } else {
+                coreToggleCheck(target, () => {
+                    coreRenderStats(statsMonth, renderCalendarBase);
+                }, dStr);
+            }
+        }, target);
     }
 
     if (window.myChart) window.myChart.destroy();
     const singleHabit = target !== 'all' ? habits.find(x => x.id === target) : null;
     const barColor = singleHabit?.color || '#4a90e2';
     const isNumeric = singleHabit?.type === 'value';
-    window.myChart = new Chart(document.getElementById('statsChart'), {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Valore', data, backgroundColor: barColor, borderRadius: 6 }] },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: isDark ? '#aaa' : '#666',
-                        ...(isNumeric ? {} : { stepSize: 1 })
+
+    // 1) DISEGNA IL GRAFICO A BARRE MENSILE
+    const statsChartCanvas = document.getElementById('statsChart');
+    if (target === 'all' || isNumeric) {
+        statsChartCanvas.style.display = 'block';
+        statsChartCanvas.style.maxHeight = "200px";
+        statsChartCanvas.style.height = "200px";
+        window.myChart = new Chart(statsChartCanvas, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Valore', data, backgroundColor: barColor, borderRadius: 6 }] },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: isDark ? '#aaa' : '#666',
+                            ...(isNumeric ? {} : { stepSize: 1 })
+                        },
+                        grid: { color: isDark ? '#333' : '#eee' }
                     },
-                    grid: { color: isDark ? '#333' : '#eee' }
-                },
-                x: {
-                    ticks: { color: isDark ? '#aaa' : '#666', maxTicksLimit: 10, maxRotation: 0 },
-                    grid: { display: false }
+                    x: {
+                        ticks: { color: isDark ? '#aaa' : '#666', maxTicksLimit: 10, maxRotation: 0 },
+                        grid: { display: false }
+                    }
                 }
             }
-        }
-    });
+        });
+    } else {
+        statsChartCanvas.style.display = 'none';
+    }
+
+    // 2) DISEGNA IL GRAFICO RADIALE (TUTTO IL TEMPO)
+    if (window.radarChartObj) window.radarChartObj.destroy();
+    
+    let radarLabels = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+    let radarData = [0, 0, 0, 0, 0, 0, 0];
+    let radarExpected = [0, 0, 0, 0, 0, 0, 0];
+    
+    // Trova la data di inizio assoluta analizzando tutti i log nel database
+    const allDatesLogs = Object.keys(logs).sort();
+    let firstDate = allDatesLogs.length > 0 ? new Date(allDatesLogs[0]) : new Date();
+    firstDate.setHours(0,0,0,0);
+    const todayRadar = new Date();
+    todayRadar.setHours(0,0,0,0);
+    
+    let tempRadar = new Date(firstDate);
+    // Cosa andiamo ad analizzare?
+    const habitsToCheck = target === 'all' ? habits.filter(h => !h.archived) : [singleHabit];
+    
+    while (tempRadar <= todayRadar) {
+        let dStr = getLocalISODate(tempRadar);
+        let dayOfWeek = tempRadar.getDay();
+        let radarIdx = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 0=Lun, 6=Dom
+        
+        let expectedCount = 0;
+        let doneCount = 0;
+        
+        habitsToCheck.forEach(h => {
+             if (!h) return;
+             const freq = h.frequency || 'daily';
+             let expected = false;
+             if (freq === 'daily' || freq === 'weekly') expected = true;
+             else if (freq === 'days') expected = h.frequencyDays?.includes(dayOfWeek);
+             
+             if (expected) {
+                 expectedCount++;
+                 const val = logs[dStr]?.[h.id];
+                 const isDone = (h.type === 'value' ? val >= h.target : val === true);
+                 if (isDone) doneCount++;
+             }
+        });
+
+        radarExpected[radarIdx] += expectedCount;
+        radarData[radarIdx] += doneCount;
+        
+        tempRadar.setDate(tempRadar.getDate() + 1);
+    }
+    
+    let radarPercs = [];
+    for (let i = 0; i < 7; i++) {
+        radarPercs.push(radarExpected[i] > 0 ? Math.round((radarData[i] / radarExpected[i]) * 100) : 0);
+    }
+    
+    const radarContainer = document.getElementById('radarContainer');
+    // Nascondiamo il contenitore se non ci sono dati attesi (quasi mai vero)
+    if (habitsToCheck.length === 0 || radarExpected.reduce((a,b)=>a+b, 0) === 0) {
+        radarContainer.classList.add('hidden');
+    } else {
+        radarContainer.classList.remove('hidden');
+        window.radarChartObj = new Chart(document.getElementById('radarChart'), {
+            type: 'radar',
+            data: {
+                labels: radarLabels,
+                datasets: [{
+                    label: '% Completamento Storico',
+                    data: radarPercs,
+                    backgroundColor: barColor + '40', // 25% opacity
+                    borderColor: barColor,
+                    pointBackgroundColor: barColor,
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: barColor,
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) { return ' ' + context.raw + '% Storico'; }
+                        }
+                    }
+                },
+                scales: {
+                    r: {
+                        angleLines: { color: isDark ? '#444' : '#ddd' },
+                        grid: { color: isDark ? '#444' : '#ddd' },
+                        pointLabels: { color: isDark ? '#aaa' : '#666', font: { size: 12, weight: 'bold' } },
+                        ticks: { display: false, min: 0, max: 100, stepSize: 20 }
+                    }
+                },
+                maintainAspectRatio: false
+            }
+        });
+    }
 }
