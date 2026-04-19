@@ -92,22 +92,22 @@
         </div>
 
         <div id="summaryList"></div>
-        
-        <button id="btnManageSelected" class="btn-action" style="width:100%; margin-top:20px; background:var(--tab-bg); color:var(--text);" onclick="manageSelectedHabit()">⚙️ GESTISCI QUESTA ABITUDINE</button>
 
         <div id="miniCalContainer" class="hidden">
             <div id="streakContainer"></div>
             <h4 style="text-align:center; font-size:0.85em; margin:15px 0 10px 0; color:var(--subtext);">Dettaglio Giornaliero:</h4>
             <div class="calendar-grid" id="miniCalendar"></div>
+            <button id="btnManageSelected" class="btn-action" style="width:100%; margin-top:15px; padding:13px; background:var(--tab-bg); color:var(--text); border:1px solid var(--border); font-size:0.85em;" onclick="manageSelectedHabit()">⚙️ GESTISCI QUESTA ABITUDINE</button>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:20px; padding-top:15px; border-top:1px solid var(--border);">
+            <button class="btn-action" style="flex:1; background:var(--tab-bg); color:var(--text); border:1px solid var(--border); font-size:0.85em; padding:12px;" onclick="exportData()">⬆️ Esporta</button>
+            <button class="btn-action" style="flex:1; background:var(--tab-bg); color:var(--text); border:1px solid var(--border); font-size:0.85em; padding:12px;" onclick="document.getElementById('importFile').click()">⬇️ Importa</button>
+            <input type="file" id="importFile" style="display:none" onchange="importData(event)">
         </div>
     </div>
 
-    <div class="backup-footer">
-        <button class="btn-backup" onclick="exportData()">Esporta Backup</button>
-        <button class="btn-backup" onclick="document.getElementById('importFile').click()">Importa Backup</button>
-        <button class="btn-backup" style="color:var(--danger); border-color:var(--danger);" onclick="cleanupDatabase()">Pulisci Database</button>
-        <input type="file" id="importFile" style="display:none" onchange="importData(event)">
-    </div>
+
 </div>
 
 <!-- Bottom Navigation -->
