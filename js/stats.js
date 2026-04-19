@@ -1,77 +1,140 @@
+// Helper: parsing corretto di stringhe data ISO in timezone locale
+// IMPORTANTE: new Date('2026-04-19') viene parsato come UTC midnight, non locale!
+// In UTC+2 questo crea April 18 alle 22:00 locali, causando bug nel calcolo streak.
+function parseLocalDate(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d); // midnight locale, nessun problema timezone
+}
+
+// Helper: restituisce la data del lunedì ISO della settimana di una data stringa
+function getISOWeekMonday(dateStr) {
+    const d = parseLocalDate(dateStr); // Fix: usa parseLocalDate invece di new Date()
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // porta a lunedì ISO
+    d.setDate(d.getDate() + diff);
+    return getLocalISODate(d);
+}
+
 function getStreakStats(habitId) {
     const h = habits.find(x => x.id === habitId);
-    if (!h) return { best3: [], current: 0 };
+    if (!h) return { best3: [], current: 0, unit: 'gg' };
     if (!h.frequency) h.frequency = 'daily';
 
     // Date in cui l'abitudine è stata COMPLETATA
-    let doneDates = Object.keys(logs).filter(d => {
+    const doneDates = Object.keys(logs).filter(d => {
         const val = logs[d]?.[habitId];
         return h.type === 'value' ? val >= h.target : val === true;
     }).sort();
-    
-    if (doneDates.length === 0) return { best3: [], current: 0 };
 
-    // Costruiamo la lista di giorni in cui l'abitudine ERA PREVISTA finora
+    if (doneDates.length === 0) return { best3: [], current: 0, unit: 'gg' };
+
+    // FIX #4: Set per lookup O(1) invece di Array.includes O(n)
+    const doneDatesSet = new Set(doneDates);
+
     const today = new Date();
-    today.setHours(0,0,0,0);
-    const firstLog = new Date(doneDates[0]);
+    today.setHours(0, 0, 0, 0);
+    const todayStr = getLocalISODate(today);
+
+    let streaks = [];
+
+    // --- FIX #1 e #3: Logica WEEKLY corretta ---
+    // Conta settimane ISO consecutive in cui si raggiunge il target (X volte a settimana)
+    if (h.frequency === 'weekly') {
+        const weeklyTarget = h.frequencyWeekly || 3;
+
+        // Raggruppa le date completate per settimana ISO (chiave = lunedì della settimana)
+        const weekMap = {};
+        doneDates.forEach(d => {
+            const weekKey = getISOWeekMonday(d);
+            weekMap[weekKey] = (weekMap[weekKey] || 0) + 1;
+        });
+
+        // Filtra le settimane in cui il target è stato raggiunto e ordinale
+        const successWeeks = Object.keys(weekMap)
+            .filter(w => weekMap[w] >= weeklyTarget)
+            .sort();
+
+        if (successWeeks.length === 0) return { best3: [], current: 0, unit: 'sett.' };
+
+        // Calcola streak consecutive di settimane (7 giorni di distanza tra lunedì)
+        // Math.round gestisce i rari casi di transizione DST (+/- 1 ora)
+        let sc = { count: 1, start: successWeeks[0], end: successWeeks[0] };
+        for (let i = 1; i < successWeeks.length; i++) {
+            const diffDays = (parseLocalDate(successWeeks[i]) - parseLocalDate(successWeeks[i - 1])) / 86400000;
+            if (Math.round(diffDays) === 7) {
+                sc.count++;
+                sc.end = successWeeks[i];
+            } else {
+                streaks.push({ ...sc });
+                sc = { count: 1, start: successWeeks[i], end: successWeeks[i] };
+            }
+        }
+        streaks.push(sc);
+
+        // FIX #3: Streak corrente = l'ultima settimana di successo è questa o quella scorsa
+        const thisWeekMonday = getISOWeekMonday(todayStr);
+        // Fix: usa parseLocalDate per evitare bug timezone su new Date(string)
+        const lastWeekDate = parseLocalDate(thisWeekMonday);
+        lastWeekDate.setDate(lastWeekDate.getDate() - 7);
+        const lastWeekMonday = getLocalISODate(lastWeekDate);
+
+        const last = streaks[streaks.length - 1];
+        const currentCount = (last && (last.end === thisWeekMonday || last.end === lastWeekMonday))
+            ? last.count : 0;
+
+        return {
+            best3: [...streaks].sort((a, b) => b.count - a.count).slice(0, 3),
+            current: currentCount,
+            unit: 'sett.'
+        };
+    }
+
+    // --- Logica DAILY e DAYS ---
+    // Costruiamo la lista di giorni in cui l'abitudine ERA PREVISTA finora
+    // Fix timezone: parseLocalDate crea la data a mezzanotte locale (non UTC)
+    // Senza questo, new Date('2026-04-19') in UTC+2 = April 18 22:00 locale
+    // e il ciclo while non includeva mai la data odierna in expectedDates
+    const firstLog = parseLocalDate(doneDates[0]);
     let expectedDates = [];
     let temp = new Date(firstLog);
 
     while (temp <= today) {
-        let dStr = getLocalISODate(temp);
-        let day = temp.getDay();
-        let show = false;
-        if (h.frequency === 'daily') show = true;
-        else if (h.frequency === 'days') show = h.frequencyDays.includes(day);
-        else if (h.frequency === 'weekly') show = true; // Per le settimanali consideriamo streak normale per ora
-
+        const dStr = getLocalISODate(temp);
+        const day = temp.getDay();
+        const show = h.frequency === 'daily' || (h.frequency === 'days' && h.frequencyDays.includes(day));
         if (show) expectedDates.push(dStr);
         temp.setDate(temp.getDate() + 1);
     }
 
-    // Calcolo streak basato solo sulle date attese
-    let streaks = [], currentStreak = { count: 0, lastIdx: -1 };
-    
-    // Per settimanale usiamo logica standard di giorni consecutivi (pìù semplice)
-    if (h.frequency === 'weekly') {
-        let sc = { count: 1, start: doneDates[0], end: doneDates[0] };
-        for (let i = 1; i < doneDates.length; i++) {
-            let diff = (new Date(doneDates[i]) - new Date(doneDates[i-1])) / 86400000;
-            if (diff === 1) { sc.count++; sc.end = doneDates[i]; }
-            else { streaks.push({...sc}); sc = { count: 1, start: doneDates[i], end: doneDates[i] }; }
+    // FIX #4: uso doneDatesSet invece di doneDates.includes
+    let sc = { count: 0, start: null, end: null };
+    expectedDates.forEach(d => {
+        if (doneDatesSet.has(d)) {
+            if (sc.count === 0) sc.start = d;
+            sc.count++;
+            sc.end = d;
+        } else {
+            if (sc.count > 0) streaks.push({ ...sc });
+            sc = { count: 0, start: null, end: null };
         }
-        streaks.push(sc);
-    } else {
-        // Logica per Daily e Days: contiamo quanti 'expectedDates' consecutivi sono stati fatti
-        let sc = { count: 0, start: null, end: null };
-        expectedDates.forEach(d => {
-            if (doneDates.includes(d)) {
-                if (sc.count === 0) sc.start = d;
-                sc.count++;
-                sc.end = d;
-            } else {
-                if (sc.count > 0) streaks.push({...sc});
-                sc = { count: 0, start: null, end: null };
-            }
-        });
-        if (sc.count > 0) streaks.push(sc);
-    }
+    });
+    if (sc.count > 0) streaks.push(sc);
 
-    const yesterday = getLocalISODate(new Date(Date.now() - 86400000));
-    const todayStr = getLocalISODate(today);
+    // Streak corrente: attiva se:
+    // 1) last.end === oggi → abitudine già completata oggi
+    // 2) last.end === ultimo giorno PREVISTO prima di oggi → l'utente non ha ancora completato oggi
+    //    ma la streak non è rotta (es. la streak va fino a ieri, oggi non è ancora finito)
+    // NOTA: non si usa lastExpected direttamente perché può essere oggi stesso (non ancora fatto)
+    const lastExpectedBeforeToday = [...expectedDates].reverse().find(d => d < todayStr) ?? null;
     const last = streaks[streaks.length - 1];
-    
-    let currentCount = 0;
-    if (last) {
-        // Lo streak è attuale se l'ultimo completamento è oggi o se l'ultimo GIORNO PREVISTO era ieri/oggi
-        const lastExpected = expectedDates[expectedDates.length - 1];
-        if (last.end === todayStr || last.end === lastExpected) {
-            currentCount = last.count;
-        }
-    }
+    const currentCount = (last && (last.end === todayStr || last.end === lastExpectedBeforeToday))
+        ? last.count : 0;
 
-    return { best3: [...streaks].sort((a, b) => b.count - a.count).slice(0, 3), current: currentCount };
+    return {
+        best3: [...streaks].sort((a, b) => b.count - a.count).slice(0, 3),
+        current: currentCount,
+        unit: 'gg'
+    };
 }
 
 function coreRenderStats(statsMonth, renderCalendarBase) {
@@ -183,15 +246,17 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         const avgValue = activeDays > 0 ? totalValue / activeDays : 0;
 
         const sStats = getStreakStats(target);
+        const streakUnit = sStats.unit || 'gg';
+        const streakLabel = streakUnit === 'sett.' ? 'settimane' : 'giorni';
         document.getElementById('streakContainer').innerHTML = `
             <div style="margin-top:10px; border-bottom:1px solid var(--border); padding-bottom:15px;">
                 <div style="display:flex; justify-content:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
-                    <span class="current-tag">⚡ ATTUALE: ${sStats.current} gg</span>
+                    <span class="current-tag">⚡ ATTUALE: ${sStats.current} ${streakUnit}</span>
                     <span class="streak-tag">🏆 TOP 3 MIGLIORI</span>
                 </div>
                 ${sStats.best3.length > 0 ? sStats.best3.map((s, idx) => `
                     <div class="summary-item" style="padding:10px 15px; margin-bottom:6px; border-left: 4px solid ${idx === 0 ? 'var(--streak)' : 'var(--border)'}">
-                        <span><b>#${idx + 1}</b> &nbsp; 🔥 <b>${s.count} giorni</b></span>
+                        <span><b>#${idx + 1}</b> &nbsp; 🔥 <b>${s.count} ${streakLabel}</b></span>
                         <span style="font-size:0.8em; color:var(--subtext);">fino al ${new Date(s.end).toLocaleDateString('it-IT')}</span>
                     </div>
                 `).join('') : '<p style="text-align:center; color:var(--subtext); font-size:0.8em;">Nessuna sequenza</p>'}
