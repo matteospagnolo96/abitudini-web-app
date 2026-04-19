@@ -172,7 +172,6 @@ select option {
 .current-tag { background: var(--current); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; }
 
 .hidden { display: none; }
-.backup-footer { margin-top: 30px; text-align: center; opacity: 0.4; transition: 0.3s; }
 .adv-field label { display: block; margin-bottom: 4px; }
 .adv-field input, .adv-field select { width: 100%; border-color: var(--border); background: var(--card); }
 
