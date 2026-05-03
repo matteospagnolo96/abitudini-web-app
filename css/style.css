@@ -155,6 +155,19 @@ select option {
 }
 .day.selected { border: 2px solid var(--primary); font-weight: bold; }
 .day.checked { color: white; border-color: transparent; }
+.day.perfect-day { 
+    border: 2px solid #FFD700 !important; 
+    box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.2), 0 0 8px rgba(255, 215, 0, 0.4); 
+    font-weight: bold;
+}
+.day.perfect-day::after {
+    content: "⭐";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 0.6em;
+    z-index: 3;
+}
 
 .habit-count-badge {
     margin-top: 3px; background: rgba(46, 204, 113, 0.2); color: var(--success);
