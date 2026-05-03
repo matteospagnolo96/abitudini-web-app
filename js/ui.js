@@ -335,14 +335,40 @@ function renderCalendarBase(container, dateObj, isMain, onDateSelect, targetHabi
                 fillHtml = `<div class="habit-progress-bg" style="background:${hColor}; height:${perc}%; opacity:${completed ? 1 : 0.4}"></div>`;
             }
         } else {
-            // Overview: no green bg, count only COMPLETED habits
+            // Overview: no green bg, count only COMPLETED habits and check for perfect day
+            let requiredTodayCount = 0;
+            let requiredCompletedToday = 0;
+
             habits.forEach(h => {
                 if (h.archived) return;
+                
+                const freq = h.frequency || 'daily';
+                let isRequiredToday = false;
+                // Costruiamo la data per prendere il giorno della settimana
+                const dDate = new Date(y, m, d);
+                if (freq === 'daily') isRequiredToday = true;
+                else if (freq === 'days') isRequiredToday = h.frequencyDays?.includes(dDate.getDay());
+
+                if (isRequiredToday) requiredTodayCount++;
+
                 const val = dayLogs[h.id];
                 const done = (h.type === 'value' ? val >= h.target : val === true);
-                if (done) completedCount++;
+                if (done) {
+                    completedCount++;
+                    if (isRequiredToday) requiredCompletedToday++;
+                }
             });
+            
             isDoneForDay = false; // No green background in general overview
+            
+            let isPerfectDay = false;
+            if (requiredTodayCount > 0) {
+                if (requiredCompletedToday >= requiredTodayCount) isPerfectDay = true;
+            } else if (completedCount > 0) {
+                isPerfectDay = true; // Se non ci sono obblighi ma è stato fatto qualcosa
+            }
+            
+            if (isPerfectDay) className += " perfect-day";
         }
 
         if (isDoneForDay) className += " checked";

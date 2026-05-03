@@ -151,35 +151,14 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         let totalProgress = 0, perfectDays = 0, hMap = {}; 
         habits.forEach(h => hMap[h.id] = 0);
         
+        // Trova tutte le settimane ISO che si sovrappongono a questo mese
+        const weeksInMonth = new Set();
         for (let d = 1; d <= lastDay; d++) {
             const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const dd = new Date(dStr);
-            const dayOfWeek = dd.getDay();
-            const dayLogs = logs[dStr] || {};
-            
-            let completedToday = 0;
-            let activeTodayCount = 0;
-
-            habits.forEach(h => {
-                const freq = h.frequency || 'daily';
-                let isActive = false;
-                if (freq === 'daily' || freq === 'weekly') isActive = true;
-                else if (freq === 'days') isActive = h.frequencyDays?.includes(dayOfWeek);
-
-                if (isActive) activeTodayCount++;
-
-                const val = dayLogs[h.id];
-                const isDone = (h.type === 'value' ? val >= h.target : val === true);
-                if (isDone) { hMap[h.id]++; completedToday++; }
-            });
-
-            labels.push(d);
-            data.push(completedToday);
-            totalProgress += completedToday;
-            if (activeTodayCount > 0 && completedToday >= activeTodayCount) perfectDays++;
+            weeksInMonth.add(getISOWeekMonday(dStr));
         }
         
-        // Calcolo totale atteso per il mese
+        // Calcolo totale atteso per il mese e pre-calcolo progressi settimanali
         let totalExpected = 0;
         habits.forEach(h => {
             const freq = h.frequency || 'daily';
@@ -189,9 +168,61 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
                     if (h.frequencyDays?.includes(new Date(y, m, d).getDay())) totalExpected++;
                 }
             } else if (freq === 'weekly') {
-                totalExpected += Math.ceil(lastDay / 7) * (h.frequencyWeekly || 3);
+                const target = h.frequencyWeekly || 3;
+                totalExpected += weeksInMonth.size * target;
+                
+                let hProg = 0;
+                weeksInMonth.forEach(mondayStr => {
+                    const comps = getCompletionsInWeek(h.id, mondayStr);
+                    hProg += Math.min(comps, target);
+                });
+                hMap[h.id] = hProg;
+                totalProgress += hProg;
             }
         });
+
+        for (let d = 1; d <= lastDay; d++) {
+            const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const dd = new Date(dStr);
+            const dayOfWeek = dd.getDay();
+            const dayLogs = logs[dStr] || {};
+            
+            let completedToday = 0;
+            let requiredTodayCount = 0;
+            let requiredCompletedToday = 0;
+
+            habits.forEach(h => {
+                const freq = h.frequency || 'daily';
+                let isRequiredToday = false;
+                if (freq === 'daily') isRequiredToday = true;
+                else if (freq === 'days') isRequiredToday = h.frequencyDays?.includes(dayOfWeek);
+
+                if (isRequiredToday) requiredTodayCount++;
+
+                const val = dayLogs[h.id];
+                const isDone = (h.type === 'value' ? val >= h.target : val === true);
+                if (isDone) { 
+                    if (freq !== 'weekly') {
+                        hMap[h.id]++; 
+                        totalProgress++;
+                    }
+                    completedToday++; 
+                    if (isRequiredToday) requiredCompletedToday++;
+                }
+            });
+
+            labels.push(d);
+            data.push(completedToday);
+            // totalProgress viene già incrementato per le abitudini non settimanali nel loop sopra
+            
+            if (requiredTodayCount > 0) {
+                if (requiredCompletedToday >= requiredTodayCount) perfectDays++;
+            } else if (completedToday > 0) {
+                perfectDays++;
+            }
+        }
+        
+        // totalExpected è già stato calcolato all'inizio
 
         document.getElementById('statPerc').innerText = Math.round((totalProgress / (totalExpected || 1)) * 100) + "%";
         document.getElementById('statCount').innerText = perfectDays;
@@ -209,7 +240,8 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
             else if (f === 'days') {
                 for(let d=1; d<=lastDay; d++) if(h.frequencyDays?.includes(new Date(y,m,d).getDay())) hExpected++;
             } else if (f === 'weekly') {
-                hExpected = Math.ceil(lastDay / 7) * (h.frequencyWeekly || 3);
+                const target = h.frequencyWeekly || 3;
+                hExpected = weeksInMonth.size * target;
             }
             return `
                 <div class="summary-item">
@@ -268,7 +300,21 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         else if (f === 'days') {
             for(let d=1; d<=lastDay; d++) if(h.frequencyDays?.includes(new Date(y,m,d).getDay())) hExpected++;
         } else if (f === 'weekly') {
-            hExpected = Math.ceil(lastDay / 7) * (h.frequencyWeekly || 3);
+            const weeksInMonth = new Set();
+            for (let d = 1; d <= lastDay; d++) {
+                const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                weeksInMonth.add(getISOWeekMonday(dStr));
+            }
+            const target = h.frequencyWeekly || 3;
+            hExpected = weeksInMonth.size * target;
+            
+            // Per abitudini settimanali, i completamenti mensili considerano le settimane ISO sovrapposte
+            let hProg = 0;
+            weeksInMonth.forEach(mondayStr => {
+                const comps = getCompletionsInWeek(h.id, mondayStr);
+                hProg += Math.min(comps, target);
+            });
+            totalCompletes = hProg;
         }
 
         document.getElementById('statPerc').innerText = Math.round((totalCompletes / (hExpected || 1)) * 100) + "%";
