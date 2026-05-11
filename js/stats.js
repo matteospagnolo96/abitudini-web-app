@@ -231,7 +231,11 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         const monthTotal = data.reduce((a, b) => a + b, 0);
         document.getElementById('statTotal').innerText = parseFloat(monthTotal.toFixed(1));
         document.getElementById('statLabelTotal').innerText = "TOTALE MESE";
-        document.getElementById('statAvg').innerText = parseFloat((monthTotal / lastDay).toFixed(2));
+        // Dividi per i giorni effettivamente trascorsi: oggi se siamo nel mese corrente, altrimenti tutto il mese
+        const now = new Date();
+        const isCurrentMonth = (y === now.getFullYear() && m === now.getMonth());
+        const elapsedDays = isCurrentMonth ? now.getDate() : lastDay;
+        document.getElementById('statAvg').innerText = parseFloat((monthTotal / elapsedDays).toFixed(2));
         document.getElementById('statLabelAvg').innerText = "MEDIA GIORNALIERA";
         document.getElementById('summaryList').innerHTML = habits.map(h => {
             let hExpected = 0;
