@@ -6,6 +6,243 @@ function setSelectedDate(date) {
     selectedDate = date;
 }
 
+// --- UTILS PER ESPERIENZA UTENTE ---
+
+function parseLocalDate(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function isDatePerfect(dStr) {
+    const dayLogs = logs[dStr] || {};
+    const dObj = parseLocalDate(dStr);
+    const dayOfWeek = dObj.getDay();
+    
+    let requiredTodayCount = 0;
+    let requiredCompletedToday = 0;
+    let completedCount = 0;
+
+    habits.forEach(h => {
+        if (h.archived) return;
+        if (h.startDate && dStr < h.startDate) return;
+
+        const params = getHabitParamsForDate(h, dStr);
+        const freq = params.frequency || 'daily';
+        let isRequiredToday = false;
+        if (freq === 'daily') isRequiredToday = true;
+        else if (freq === 'days') isRequiredToday = params.frequencyDays?.includes(dayOfWeek);
+
+        if (isRequiredToday) requiredTodayCount++;
+
+        const val = dayLogs[h.id];
+        const done = (params.type === 'value' ? val >= params.target : val === true);
+        if (done) {
+            completedCount++;
+            if (isRequiredToday) requiredCompletedToday++;
+        }
+    });
+
+    if (requiredTodayCount > 0) {
+        return requiredCompletedToday >= requiredTodayCount;
+    } else {
+        return completedCount > 0;
+    }
+}
+
+function triggerHapticFeedback() {
+    if ('vibrate' in navigator) {
+        try {
+            navigator.vibrate(30);
+        } catch(e) { console.log('Haptic vibration failed:', e); }
+    }
+}
+
+// Micro confetti engine
+function triggerConfetti() {
+    const canvas = document.getElementById('confettiCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    const colors = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ff7a00', '#ec4899', '#06b6d4'];
+    const particles = [];
+    
+    // Center cluster
+    const particleCount = 100;
+    for (let i = 0; i < particleCount; i++) {
+        particles.push({
+            x: canvas.width / 2 + (Math.random() - 0.5) * 40,
+            y: canvas.height + 20,
+            angle: Math.PI * 1.5 + (Math.random() - 0.5) * (Math.PI * 0.4),
+            speed: 10 + Math.random() * 12,
+            radius: 4 + Math.random() * 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            opacity: 1,
+            gravity: 0.3,
+            drag: 0.96,
+            rotation: Math.random() * Math.PI,
+            rotationSpeed: (Math.random() - 0.5) * 0.2
+        });
+    }
+    
+    // Side fountain left
+    for (let i = 0; i < 30; i++) {
+        particles.push({
+            x: -10,
+            y: canvas.height * 0.85,
+            angle: -Math.PI * 0.15 + (Math.random() - 0.5) * (Math.PI * 0.15),
+            speed: 16 + Math.random() * 8,
+            radius: 4 + Math.random() * 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            opacity: 1,
+            gravity: 0.28,
+            drag: 0.95,
+            rotation: Math.random() * Math.PI,
+            rotationSpeed: (Math.random() - 0.5) * 0.2
+        });
+    }
+    
+    // Side fountain right
+    for (let i = 0; i < 30; i++) {
+        particles.push({
+            x: canvas.width + 10,
+            y: canvas.height * 0.85,
+            angle: -Math.PI * 0.85 + (Math.random() - 0.5) * (Math.PI * 0.15),
+            speed: 16 + Math.random() * 8,
+            radius: 4 + Math.random() * 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            opacity: 1,
+            gravity: 0.28,
+            drag: 0.95,
+            rotation: Math.random() * Math.PI,
+            rotationSpeed: (Math.random() - 0.5) * 0.2
+        });
+    }
+
+    let animationId;
+    const startTime = Date.now();
+    const duration = 2000;
+
+    function update() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+        particles.forEach(p => {
+            p.speed *= p.drag;
+            p.x += Math.cos(p.angle) * p.speed;
+            p.y += Math.sin(p.angle) * p.speed + p.gravity;
+            p.rotation += p.rotationSpeed;
+            
+            const elapsed = Date.now() - startTime;
+            if (elapsed > duration * 0.6) {
+                p.opacity = Math.max(0, 1 - (elapsed - duration * 0.6) / (duration * 0.4));
+            }
+            
+            if (p.opacity > 0 && p.y < canvas.height + 40 && p.x > -40 && p.x < canvas.width + 40) {
+                active = true;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.radius, -p.radius / 2, p.radius * 2, p.radius);
+                ctx.restore();
+            }
+        });
+        
+        if (active && Date.now() - startTime < duration) {
+            animationId = requestAnimationFrame(update);
+        } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            cancelAnimationFrame(animationId);
+        }
+    }
+    
+    update();
+}
+
+function showCustomConfirm(title, message) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('customDialogOverlay');
+        const titleEl = document.getElementById('customDialogTitle');
+        const msgEl = document.getElementById('customDialogMessage');
+        const inputWrapper = document.getElementById('customDialogInputWrapper');
+        const btnCancel = document.getElementById('customDialogCancel');
+        const btnConfirm = document.getElementById('customDialogConfirm');
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        inputWrapper.classList.add('hidden');
+        overlay.classList.remove('hidden');
+
+        const cleanUp = () => {
+            overlay.classList.add('hidden');
+            btnCancel.onclick = null;
+            btnConfirm.onclick = null;
+        };
+
+        btnCancel.onclick = () => {
+            cleanUp();
+            resolve(false);
+        };
+
+        btnConfirm.onclick = () => {
+            cleanUp();
+            resolve(true);
+        };
+    });
+}
+
+function showCustomPrompt(title, message, defaultValue = "") {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('customDialogOverlay');
+        const titleEl = document.getElementById('customDialogTitle');
+        const msgEl = document.getElementById('customDialogMessage');
+        const inputWrapper = document.getElementById('customDialogInputWrapper');
+        const input = document.getElementById('customDialogInput');
+        const btnCancel = document.getElementById('customDialogCancel');
+        const btnConfirm = document.getElementById('customDialogConfirm');
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        input.value = defaultValue;
+        inputWrapper.classList.remove('hidden');
+        overlay.classList.remove('hidden');
+        
+        setTimeout(() => {
+            input.focus();
+            input.select();
+        }, 50);
+
+        const cleanUp = () => {
+            overlay.classList.add('hidden');
+            btnCancel.onclick = null;
+            btnConfirm.onclick = null;
+            input.onkeydown = null;
+        };
+
+        btnCancel.onclick = () => {
+            cleanUp();
+            resolve(null);
+        };
+
+        btnConfirm.onclick = () => {
+            const val = input.value;
+            cleanUp();
+            resolve(val);
+        };
+
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const val = input.value;
+                cleanUp();
+                resolve(val);
+            }
+        };
+    });
+}
+
 // --- FUNZIONI UI ---
 function coreToggleTheme() {
     const current = document.body.getAttribute('data-theme');
@@ -139,10 +376,32 @@ function coreAddHabit(onComplete) {
 
         if (editId) {
             const h = habits.find(x => x.id === editId);
-            if (h) Object.assign(h, habitData);
+            if (h) {
+                // Se campi significativi cambiano, salva uno snapshot della versione corrente
+                const SIG = ['type', 'target', 'frequency', 'frequencyDays', 'frequencyWeekly'];
+                const changed = SIG.some(f => JSON.stringify(h[f]) !== JSON.stringify(habitData[f]));
+                if (changed && h.startDate) {
+                    if (!h.history) h.history = [];
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    h.history.push({
+                        validFrom: h.startDate,
+                        validUntil: getLocalISODate(yesterday),
+                        type: h.type,
+                        target: h.target,
+                        frequency: h.frequency || 'daily',
+                        frequencyDays: h.frequencyDays ? [...h.frequencyDays] : [],
+                        frequencyWeekly: h.frequencyWeekly || 3
+                    });
+                    habitData.startDate = getLocalISODate();
+                }
+                Object.assign(h, habitData);
+            }
         } else {
             habits.push({
                 id: 'h_' + Math.random().toString(36).substr(2, 9),
+                startDate: getLocalISODate(),
+                history: [],
                 ...habitData
             });
         }
@@ -153,12 +412,16 @@ function coreAddHabit(onComplete) {
     }
 }
 
-function coreArchiveHabit(onComplete) {
+async function coreArchiveHabit(onComplete) {
     const editId = document.getElementById('editHabitId').value;
     if (editId) {
         const h = habits.find(x => x.id === editId);
         if (h) {
-            if (confirm(`Vuoi archiviare "${h.name}"? Non apparirà più in home ma manterrai i dati.`)) {
+            const confirmed = await showCustomConfirm(
+                "Archivia Abitudine", 
+                `Vuoi archiviare "${h.name}"? Non apparirà più in home ma manterrai i dati.`
+            );
+            if (confirmed) {
                 h.archived = true;
                 save(onComplete);
                 return true;
@@ -181,12 +444,16 @@ function coreRestoreHabit(onComplete) {
     return false;
 }
 
-function coreDeleteHabitPermanent(onComplete) {
+async function coreDeleteHabitPermanent(onComplete) {
     const editId = document.getElementById('editHabitId').value;
     if (editId) {
         const h = habits.find(x => x.id === editId);
         if (h) {
-            if (confirm(`ATTENZIONE: Eliminando "${h.name}" cancellerai DEFINITIVAMENTE anche tutta la sua cronologia. Continuare?`)) {
+            const confirmed = await showCustomConfirm(
+                "Eliminazione Definitiva", 
+                `ATTENZIONE: Eliminando "${h.name}" cancellerai DEFINITIVAMENTE anche tutta la sua cronologia. Continuare?`
+            );
+            if (confirmed) {
                 const idx = habits.findIndex(x => x.id === editId);
                 habits.splice(idx, 1);
                 
@@ -194,7 +461,6 @@ function coreDeleteHabitPermanent(onComplete) {
                 for (const date in logs) {
                     if (logs[date][editId] !== undefined) {
                         delete logs[date][editId];
-                        // Se la data è rimasta vuota la togliamo? Meglio di no, un oggetto vuoto va bene.
                     }
                 }
                 
@@ -210,45 +476,101 @@ function coreDeleteHabitPermanent(onComplete) {
 function coreToggleCheck(habitId, onComplete, targetDate = selectedDate) {
     if (!logs[targetDate]) logs[targetDate] = {};
     
+    const wasPerfect = isDatePerfect(targetDate);
+    const wasCompletedBefore = logs[targetDate][habitId] === true;
+
     if (logs[targetDate][habitId]) {
         delete logs[targetDate][habitId];
         if (Object.keys(logs[targetDate]).length === 0) delete logs[targetDate];
     } else {
         logs[targetDate][habitId] = true;
+        triggerHapticFeedback();
     }
-    save(onComplete);
+    
+    save(() => {
+        const isPerfect = isDatePerfect(targetDate);
+        if (!wasPerfect && isPerfect) {
+            triggerConfetti();
+        }
+        if (onComplete) onComplete();
+    });
 }
 
 function coreChangeProgress(habitId, delta, onComplete, targetDate = selectedDate) {
     if (!logs[targetDate]) logs[targetDate] = {};
     
+    const habit = habits.find(h => h.id === habitId);
+    const wasPerfect = isDatePerfect(targetDate);
+    
     let current = logs[targetDate][habitId] || 0;
     if (typeof current !== 'number') current = 0;
     
+    const wasCompletedBefore = current >= habit.target;
     let newVal = Math.max(0, current + delta);
+    const isCompletedAfter = newVal >= habit.target;
+
     if (newVal === 0) {
         delete logs[targetDate][habitId];
         if (Object.keys(logs[targetDate]).length === 0) delete logs[targetDate];
     }
-    else logs[targetDate][habitId] = newVal;
+    else {
+        logs[targetDate][habitId] = newVal;
+    }
     
-    save(onComplete);
+    if (!wasCompletedBefore && isCompletedAfter) {
+        triggerHapticFeedback();
+    }
+    
+    save(() => {
+        const isPerfect = isDatePerfect(targetDate);
+        if (!wasPerfect && isPerfect) {
+            triggerConfetti();
+        }
+        if (onComplete) onComplete();
+    });
 }
 
-function coreSetManualProgress(habitId, onComplete, targetDate = selectedDate) {
+async function coreSetManualProgress(habitId, onComplete, targetDate = selectedDate) {
     const habit = habits.find(h => h.id === habitId);
     let current = logs[targetDate]?.[habitId] || 0;
-    const val = prompt(`Inserisci valore manuale per ${habit.name} (${habit.unit}) in data ${new Date(targetDate).toLocaleDateString('it-IT')}:`, current);
+    if (typeof current !== 'number') current = 0;
+    
+    const wasPerfect = isDatePerfect(targetDate);
+    const wasCompletedBefore = current >= habit.target;
+
+    const formattedDate = parseLocalDate(targetDate).toLocaleDateString('it-IT');
+    const val = await showCustomPrompt(
+        `Inserisci valore manuale`,
+        `Digita il valore per "${habit.name}" (${habit.unit || 'unità'}) in data ${formattedDate}:`,
+        current
+    );
+    
     if (val !== null) {
         const num = parseFloat(val.replace(',', '.'));
         if (!isNaN(num)) {
             if (!logs[targetDate]) logs[targetDate] = {};
+            
+            const isCompletedAfter = num >= habit.target;
+
             if (num <= 0) {
                 delete logs[targetDate][habitId];
                 if (Object.keys(logs[targetDate]).length === 0) delete logs[targetDate];
             }
-            else logs[targetDate][habitId] = num;
-            save(onComplete);
+            else {
+                logs[targetDate][habitId] = num;
+            }
+            
+            if (!wasCompletedBefore && isCompletedAfter) {
+                triggerHapticFeedback();
+            }
+
+            save(() => {
+                const isPerfect = isDatePerfect(targetDate);
+                if (!wasPerfect && isPerfect) {
+                    triggerConfetti();
+                }
+                if (onComplete) onComplete();
+            });
         }
     }
 }
@@ -341,18 +663,21 @@ function renderCalendarBase(container, dateObj, isMain, onDateSelect, targetHabi
 
             habits.forEach(h => {
                 if (h.archived) return;
-                
-                const freq = h.frequency || 'daily';
+                // Salta se il giorno è precedente alla data di inizio dell'abitudine
+                if (h.startDate && dStr < h.startDate) return;
+
+                const params = getHabitParamsForDate(h, dStr);
+                const freq = params.frequency || 'daily';
                 let isRequiredToday = false;
                 // Costruiamo la data per prendere il giorno della settimana
                 const dDate = new Date(y, m, d);
                 if (freq === 'daily') isRequiredToday = true;
-                else if (freq === 'days') isRequiredToday = h.frequencyDays?.includes(dDate.getDay());
+                else if (freq === 'days') isRequiredToday = params.frequencyDays?.includes(dDate.getDay());
 
                 if (isRequiredToday) requiredTodayCount++;
 
                 const val = dayLogs[h.id];
-                const done = (h.type === 'value' ? val >= h.target : val === true);
+                const done = (params.type === 'value' ? val >= params.target : val === true);
                 if (done) {
                     completedCount++;
                     if (isRequiredToday) requiredCompletedToday++;
@@ -502,6 +827,7 @@ function coreRenderAll(viewMonth, onDateSelect) {
                     <div class="habit-btn habit-numeric ${completed ? 'completed' : ''}"
                         data-id="${h.id}" data-delta="${h.increment}"
                         style="cursor:pointer; border-color:${hColor}; color:${completed ? 'white' : hColor}">
+                        <div class="habit-edit-icon" data-id="${h.id}" title="Modifica">⚙️</div>
                         <div class="habit-progress-bg" style="background:${hColor}; height:${perc}%; opacity:${completed ? 1 : 0.25}"></div>
                         <span class="habit-name">${emojiHtml} ${h.name}</span>
                         <div class="progress-val" data-manual="${h.id}" style="color:${completed ? 'white' : 'var(--primary)'}">
@@ -514,6 +840,7 @@ function coreRenderAll(viewMonth, onDateSelect) {
                 content = `
                     <div class="habit-btn ${isActive ? 'active' : ''}" data-id="${h.id}"
                         style="cursor:pointer; border-color:${hColor}; color:${isActive ? 'white' : hColor}">
+                        <div class="habit-edit-icon" data-id="${h.id}" title="Modifica">⚙️</div>
                         <div class="habit-progress-bg" style="background:${hColor}; height:${isActive ? '100%' : '0%'}; opacity:${isActive ? 1 : 0}"></div>
                         <span class="habit-name">${emojiHtml} ${h.name}</span>
                     </div>
@@ -562,6 +889,17 @@ function coreRenderAll(viewMonth, onDateSelect) {
             };
             pv.onmousedown = (e) => e.stopPropagation();
             pv.ontouchstart = (e) => e.stopPropagation();
+        });
+
+        // Click handler per l'icona di modifica rapida
+        grid.querySelectorAll('.habit-edit-icon').forEach(editBtn => {
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+                window.dispatchEvent(new CustomEvent('edit-habit', { detail: editBtn.dataset.id }));
+            };
+            editBtn.onmousedown = (e) => e.stopPropagation();
+            editBtn.ontouchstart = (e) => e.stopPropagation();
         });
     }
 

@@ -66,8 +66,8 @@ function setupEventListeners() {
         render();
         toggleEditor(false);
     });
-    window.archiveHabit = () => {
-        if (coreArchiveHabit(() => {
+    window.archiveHabit = async () => {
+        if (await coreArchiveHabit(() => {
             render();
             toggleEditor(false);
             coreFillSelector(); // Aggiorna selettore analisi
@@ -82,8 +82,8 @@ function setupEventListeners() {
         })) { /* success */ }
     };
 
-    window.deleteHabitPermanent = () => {
-        if (coreDeleteHabitPermanent(() => {
+    window.deleteHabitPermanent = async () => {
+        if (await coreDeleteHabitPermanent(() => {
             render();
             toggleEditor(false);
             coreFillSelector();
@@ -101,7 +101,7 @@ function setupEventListeners() {
     
     window.addEventListener('toggle-check', (e) => coreToggleCheck(e.detail, render));
     window.addEventListener('change-progress', (e) => coreChangeProgress(e.detail.id, e.detail.delta, render));
-    window.addEventListener('manual-progress', (e) => coreSetManualProgress(e.detail, render));
+    window.addEventListener('manual-progress', async (e) => await coreSetManualProgress(e.detail, render));
     window.addEventListener('edit-habit', (e) => {
         toggleEditor(true, e.detail);
     });

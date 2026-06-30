@@ -21,9 +21,12 @@ function getStreakStats(habitId) {
     if (!h.frequency) h.frequency = 'daily';
 
     // Date in cui l'abitudine è stata COMPLETATA
+    // Usa getHabitParamsForDate per confrontare con il target valido in quella data
     const doneDates = Object.keys(logs).filter(d => {
+        if (h.startDate && d < h.startDate) return false;
         const val = logs[d]?.[habitId];
-        return h.type === 'value' ? val >= h.target : val === true;
+        const params = getHabitParamsForDate(h, d);
+        return params.type === 'value' ? val >= params.target : val === true;
     }).sort();
 
     if (doneDates.length === 0) return { best3: [], current: 0, unit: 'gg' };
@@ -95,13 +98,17 @@ function getStreakStats(habitId) {
     // Senza questo, new Date('2026-04-19') in UTC+2 = April 18 22:00 locale
     // e il ciclo while non includeva mai la data odierna in expectedDates
     const firstLog = parseLocalDate(doneDates[0]);
+    // Rispetta startDate: le aspettative non iniziano prima dell'inizio ufficiale
+    const habitStart = h.startDate ? parseLocalDate(h.startDate) : null;
     let expectedDates = [];
-    let temp = new Date(firstLog);
+    let temp = (habitStart && habitStart > firstLog) ? new Date(habitStart) : new Date(firstLog);
 
     while (temp <= today) {
         const dStr = getLocalISODate(temp);
         const day = temp.getDay();
-        const show = h.frequency === 'daily' || (h.frequency === 'days' && h.frequencyDays.includes(day));
+        const params = getHabitParamsForDate(h, dStr);
+        const freq = params.frequency || 'daily';
+        const show = freq === 'daily' || (freq === 'days' && params.frequencyDays?.includes(day));
         if (show) expectedDates.push(dStr);
         temp.setDate(temp.getDate() + 1);
     }
@@ -138,6 +145,9 @@ function getStreakStats(habitId) {
 }
 
 function coreRenderStats(statsMonth, renderCalendarBase) {
+    if (window.Chart) {
+        Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
+    }
     const target = document.getElementById('habitSelector').value;
     const y = statsMonth.getFullYear(), m = statsMonth.getMonth();
     const lastDay = new Date(y, m + 1, 0).getDate();
@@ -162,10 +172,21 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         let totalExpected = 0;
         habits.forEach(h => {
             const freq = h.frequency || 'daily';
-            if (freq === 'daily') totalExpected += lastDay;
-            else if (freq === 'days') {
-                for (let d=1; d<=lastDay; d++) {
-                    if (h.frequencyDays?.includes(new Date(y, m, d).getDay())) totalExpected++;
+            const monthStartStr = `${y}-${String(m+1).padStart(2,'0')}-01`;
+            const monthEndStr = `${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+            // Se l'abitudine inizia dopo la fine del mese, salta
+            if (h.startDate && h.startDate > monthEndStr) return;
+            // Giorno da cui contare nel mese (1 o il giorno di startDate se cade in questo mese)
+            const effectiveStartDay = (h.startDate && h.startDate > monthStartStr)
+                ? parseInt(h.startDate.split('-')[2]) : 1;
+
+            if (freq === 'daily') {
+                totalExpected += lastDay - effectiveStartDay + 1;
+            } else if (freq === 'days') {
+                for (let d=effectiveStartDay; d<=lastDay; d++) {
+                    const dStr2 = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const params = getHabitParamsForDate(h, dStr2);
+                    if (params.frequencyDays?.includes(new Date(y, m, d).getDay())) totalExpected++;
                 }
             } else if (freq === 'weekly') {
                 const target = h.frequencyWeekly || 3;
@@ -192,15 +213,19 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
             let requiredCompletedToday = 0;
 
             habits.forEach(h => {
-                const freq = h.frequency || 'daily';
+                // Salta se il giorno è precedente alla data di inizio dell'abitudine
+                if (h.startDate && dStr < h.startDate) return;
+
+                const params = getHabitParamsForDate(h, dStr);
+                const freq = params.frequency || 'daily';
                 let isRequiredToday = false;
                 if (freq === 'daily') isRequiredToday = true;
-                else if (freq === 'days') isRequiredToday = h.frequencyDays?.includes(dayOfWeek);
+                else if (freq === 'days') isRequiredToday = params.frequencyDays?.includes(dayOfWeek);
 
                 if (isRequiredToday) requiredTodayCount++;
 
                 const val = dayLogs[h.id];
-                const isDone = (h.type === 'value' ? val >= h.target : val === true);
+                const isDone = (params.type === 'value' ? val >= params.target : val === true);
                 if (isDone) { 
                     if (freq !== 'weekly') {
                         hMap[h.id]++; 
@@ -331,9 +356,9 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
         document.getElementById('statAvg').innerText = parseFloat(avgValue.toFixed(2)) + unit;
         document.getElementById('statLabelAvg').innerText = h.type === 'value' ? "MEDIA (GG ATTIVI)" : "MEDIA GIORNALIERA";
 
-        renderCalendarBase(document.getElementById('miniCalendar'), statsMonth, false, (dStr) => {
+        renderCalendarBase(document.getElementById('miniCalendar'), statsMonth, false, async (dStr) => {
             if (h.type === 'value') {
-                coreSetManualProgress(target, () => {
+                await coreSetManualProgress(target, () => {
                     coreRenderStats(statsMonth, renderCalendarBase);
                 }, dStr);
             } else {
@@ -364,13 +389,14 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            color: isDark ? '#aaa' : '#666',
+                            color: isDark ? '#94a3b8' : '#64748b',
+                            font: { weight: '600', size: 10 },
                             ...(isNumeric ? {} : { stepSize: 1 })
                         },
-                        grid: { color: isDark ? '#333' : '#eee' }
+                        grid: { color: isDark ? 'rgba(255, 255, 255, 0.07)' : '#e2e8f0' }
                     },
                     x: {
-                        ticks: { color: isDark ? '#aaa' : '#666', maxTicksLimit: 10, maxRotation: 0 },
+                        ticks: { color: isDark ? '#94a3b8' : '#64748b', maxTicksLimit: 10, maxRotation: 0, font: { weight: '600', size: 10 } },
                         grid: { display: false }
                     }
                 }
@@ -465,9 +491,9 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
                 },
                 scales: {
                     r: {
-                        angleLines: { color: isDark ? '#444' : '#ddd' },
-                        grid: { color: isDark ? '#444' : '#ddd' },
-                        pointLabels: { color: isDark ? '#aaa' : '#666', font: { size: 12, weight: 'bold' } },
+                        angleLines: { color: isDark ? 'rgba(255, 255, 255, 0.07)' : '#e2e8f0' },
+                        grid: { color: isDark ? 'rgba(255, 255, 255, 0.07)' : '#e2e8f0' },
+                        pointLabels: { color: isDark ? '#94a3b8' : '#64748b', font: { size: 11, weight: '700' } },
                         ticks: { display: false, min: 0, max: 100, stepSize: 20 }
                     }
                 },
