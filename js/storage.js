@@ -3,6 +3,20 @@ function getLocalISODate(d = new Date()) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+// Restituisce i parametri dell'abitudine validi per una data specifica.
+// Se l'abitudine ha uno storico versioni (history), usa i parametri corretti per quella data.
+// Backward-compatible: abitudini senza history usano sempre i parametri attuali.
+function getHabitParamsForDate(habit, dateStr) {
+    if (!habit.history || habit.history.length === 0) return habit;
+    for (let i = habit.history.length - 1; i >= 0; i--) {
+        const s = habit.history[i];
+        if (dateStr >= s.validFrom && dateStr <= s.validUntil) {
+            return { ...habit, ...s };
+        }
+    }
+    return habit;
+}
+
 // --- CONFIGURAZIONE SUPABASE ---
 const SUPABASE_URL = "https://jugivbvvpywoiejzcxbl.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1Z2l2YnZ2cHl3b2llanpjeGJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2ODA0MzEsImV4cCI6MjA5MDI1NjQzMX0.IrQ9cUIUClD25XnBgVA_wC7swbG_vMU-CHPgNFWgFJ8";
