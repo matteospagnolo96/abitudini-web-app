@@ -15,6 +15,9 @@
     <link rel="manifest" href="manifest.json">
 
     <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -130,6 +133,7 @@
 <!-- Pannello Bottom-Sheet -->
 <div id="editorOverlay" class="editor-overlay hidden" onclick="toggleEditor(false)">
     <div id="editorSheet" class="editor-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-drag-handle"></div>
         <div class="sheet-header">
             <h3>Gestione Abitudini</h3>
             <button class="btn-close" onclick="toggleEditor(false)">✕</button>
@@ -237,6 +241,24 @@
                     <input type="hidden" id="editHabitId" value="">
                 </div>
             </div>
+    </div>
+</div>
+
+<!-- Confetti Canvas -->
+<canvas id="confettiCanvas"></canvas>
+
+<!-- Custom Dialog Overlay -->
+<div id="customDialogOverlay" class="custom-dialog-overlay hidden">
+    <div class="custom-dialog-card">
+        <h3 id="customDialogTitle">Conferma</h3>
+        <p id="customDialogMessage">Sei sicuro?</p>
+        <div id="customDialogInputWrapper" class="hidden" style="margin-top:15px; margin-bottom:10px;">
+            <input type="text" id="customDialogInput">
+        </div>
+        <div class="custom-dialog-buttons" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button id="customDialogCancel" class="btn-action" style="background:var(--tab-bg); color:var(--text); border:1px solid var(--border);">Annulla</button>
+            <button id="customDialogConfirm" class="btn-action">Conferma</button>
+        </div>
     </div>
 </div>
 
