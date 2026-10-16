@@ -25,15 +25,14 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // --- GESTIONE DATI ---
 let habits = JSON.parse(localStorage.getItem('h_final_v3')) || ["Acqua", "Esercizio", "Lettura"];
 let logs = JSON.parse(localStorage.getItem('l_final_v3')) || {};
+checkMigration();
 
 function setHabits(newHabits) {
     habits = newHabits;
-    checkMigration();
 }
 
 function setLogs(newLogs) {
     logs = newLogs;
-    checkMigration();
 }
 
 function checkMigration() {
@@ -119,6 +118,7 @@ async function loadFromCloud() {
         if (data && data.data) {
             setHabits(data.data.habits);
             setLogs(data.data.logs);
+            checkMigration();
             localStorage.setItem('h_final_v3', JSON.stringify(habits));
             localStorage.setItem('l_final_v3', JSON.stringify(logs));
             return "loaded";
@@ -177,7 +177,8 @@ function coreImportData(event, onComplete) {
             const data = JSON.parse(e.target.result);
             if (data.habits && data.logs) { 
                 setHabits(data.habits); 
-                setLogs(data.logs); 
+                setLogs(data.logs);
+                checkMigration();
                 save(() => {
                     alert("Dati importati con successo!");
                     if (onComplete) onComplete();

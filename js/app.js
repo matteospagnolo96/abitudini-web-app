@@ -44,7 +44,9 @@ function setupEventListeners() {
         err.innerText = "Accesso in corso...";
         try {
             await coreLogin(email, pass);
-            init(); // Ricarica lo stato
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            render();
         } catch (e) { err.innerText = "Errore: " + e.message; }
     };
 

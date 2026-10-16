@@ -204,7 +204,7 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
 
         for (let d = 1; d <= lastDay; d++) {
             const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const dd = new Date(dStr);
+            const dd = parseLocalDate(dStr);
             const dayOfWeek = dd.getDay();
             const dayLogs = logs[dStr] || {};
             
@@ -318,7 +318,7 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
                 ${sStats.best3.length > 0 ? sStats.best3.map((s, idx) => `
                     <div class="summary-item" style="padding:10px 15px; margin-bottom:6px; border-left: 4px solid ${idx === 0 ? 'var(--streak)' : 'var(--border)'}">
                         <span><b>#${idx + 1}</b> &nbsp; 🔥 <b>${s.count} ${streakLabel}</b></span>
-                        <span style="font-size:0.8em; color:var(--subtext);">fino al ${new Date(s.end).toLocaleDateString('it-IT')}</span>
+                        <span style="font-size:0.8em; color:var(--subtext);">fino al ${parseLocalDate(s.end).toLocaleDateString('it-IT')}</span>
                     </div>
                 `).join('') : '<p style="text-align:center; color:var(--subtext); font-size:0.8em;">Nessuna sequenza</p>'}
             </div>`;
@@ -415,7 +415,7 @@ function coreRenderStats(statsMonth, renderCalendarBase) {
     
     // Trova la data di inizio assoluta analizzando tutti i log nel database
     const allDatesLogs = Object.keys(logs).sort();
-    let firstDate = allDatesLogs.length > 0 ? new Date(allDatesLogs[0]) : new Date();
+    let firstDate = allDatesLogs.length > 0 ? parseLocalDate(allDatesLogs[0]) : new Date();
     firstDate.setHours(0,0,0,0);
     const todayRadar = new Date();
     todayRadar.setHours(0,0,0,0);

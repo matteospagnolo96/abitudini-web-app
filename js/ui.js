@@ -8,10 +8,7 @@ function setSelectedDate(date) {
 
 // --- UTILS PER ESPERIENZA UTENTE ---
 
-function parseLocalDate(dateStr) {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-}
+// parseLocalDate è definita in stats.js (caricato prima di ui.js)
 
 function isDatePerfect(dStr) {
     const dayLogs = logs[dStr] || {};
@@ -629,11 +626,11 @@ function renderCalendarBase(container, dateObj, isMain, onDateSelect, targetHabi
     const y = dateObj.getFullYear(), m = dateObj.getMonth();
     const firstDay = (new Date(y, m, 1).getDay() + 6) % 7;
     const daysInMonth = new Date(y, m + 1, 0).getDate();
-    container.innerHTML = ['L','M','M','G','V','S','D'].map(d => `<div class="day-name">${d}</div>`).join('');
-    
+    let calHtml = ['L','M','M','G','V','S','D'].map(d => `<div class="day-name">${d}</div>`).join('');
     for(let i=0; i<firstDay; i++) {
-        container.innerHTML += `<div></div>`;
+        calHtml += `<div></div>`;
     }
+    container.innerHTML = calHtml;
     
     for(let d=1; d<=daysInMonth; d++) {
         const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
