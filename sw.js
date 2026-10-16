@@ -14,7 +14,6 @@ self.addEventListener('install', e => {
                 './js/ui.js',
                 './js/stats.js',
                 './manifest.json',
-                './icona.png',
                 'https://cdn.jsdelivr.net/npm/chart.js'
             ]);
         })
